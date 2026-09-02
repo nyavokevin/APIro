@@ -1,0 +1,18 @@
+﻿use tauri::State;
+#[tauri::command] fn cmd1() -> String { "1".into() }
+#[tauri::command] fn cmd2() -> String { "2".into() }
+#[tauri::command] fn cmd3() -> String { "3".into() }
+#[tauri::command] fn cmd4() -> String { "4".into() }
+#[tauri::command] fn cmd5() -> String { "5".into() }
+#[tauri::command] fn cmd6() -> String { "6".into() }
+#[tauri::command] fn cmd7() -> String { "7".into() }
+#[tauri::command] fn cmd8() -> String { "8".into() }
+#[tauri::command] fn cmd9() -> String { "9".into() }
+#[tauri::command] fn cmd10() -> String { "10".into() }
+#[tauri::command] fn cmd11() -> String { "11".into() }
+#[tauri::command] fn cmd12() -> String { "12".into() }
+#[tauri::command] fn cmd13() -> String { "13".into() }
+#[tauri::command] fn cmd14() -> String { "14".into() }
+#[tauri::command] fn cmd15() -> String { "15".into() }
+#[tauri::command] fn cmd16() -> String { "16".into() }
+pub fn run() { tauri::Builder::default().invoke_handler(tauri::generate_handler![cmd1,cmd2,cmd3,cmd4,cmd5,cmd6,cmd7,cmd8,cmd9,cmd10,cmd11,cmd12,cmd13,cmd14,cmd15,cmd16]).run(tauri::generate_context!()).expect("")}

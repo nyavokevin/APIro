@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   APIForge Design System — Atomic Dark Flat Black
+   --------------------------------------------------------------------------
+   Principles:
+   - Pure black base (#000000). Hierarchy via surface steps, never elevation.
+   - Flat: no gradients, no shadows, no glow. Borders define structure.
+   - One accent (atomic orange) used sparingly for primary actions/focus.
+   - Semantic colors are muted, never decorative.
+   ========================================================================== */
+
+:root {
+  /* Surfaces — stepped from pure black */
+  --bg-primary: #000000;   /* app background */
+  --bg-secondary: #0a0a0a; /* panels: sidebar, header, modals */
+  --bg-tertiary: #161616;  /* elevated: inputs, hover, active nav */
+  --bg-hover: #1f1f1f;     /* strongest hover state */
+
+  /* Borders — the primary hierarchy tool */
+  --border: #262626;
+  --border-strong: #3d3d3d;
+
+  /* Text — muted bumped to 4.5:1 on --bg-secondary (was 2.96:1) */
+  --text-primary: #ededed;
+  --text-secondary: #8f8f8f;
+  --text-muted: #767676;
+
+  /* Accent — atomic orange (text on accent uses --accent-ink for AA) */
+  --accent: #ff5c00;
+  --accent-hover: #ff7a29;
+  --accent-subtle: rgba(255, 92, 0, 0.12);
+  --accent-ink: #0a0a0a;
+
+  /* Semantic */
+  --success: #3fd68f;
+  --warning: #ffb224;
+  --danger: #ff4d4f;
+  --info: #4d9fff;
+
+  /* Syntax highlighting (JSON tree, editors) */
+  --syntax-string: #9ece6a;
+  --syntax-number: #ff9e64;
+  --syntax-boolean: #bb9af7;
+  --syntax-null: #5c5c5c;
+
+  /* HTTP methods */
+  --method-get: #3fd68f;
+  --method-post: #ffb224;
+  --method-put: #4d9fff;
+  --method-patch: #bb9af7;
+  --method-delete: #ff4d4f;
+}
+
+.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #fafafa;
+  --bg-tertiary: #f0f0f0;
+  --bg-hover: #e8e8e8;
+  --border: #e4e4e4;
+  --border-strong: #c9c9c9;
+  --text-primary: #111111;
+  --text-secondary: #5f5f5f;
+  --text-muted: #6e6e6e;
+  --accent: #cc4400;
+  --accent-hover: #b33a00;
+  --accent-subtle: rgba(204, 68, 0, 0.12);
+  --accent-ink: #ffffff;
+  --success: #0f8a4f;
+  --warning: #b97a0a;
+  --danger: #d92d20;
+  --info: #0b6bcb;
+  --syntax-string: #4d7f2a;
+  --syntax-number: #b45309;
+  --syntax-boolean: #7c5cbf;
+  --syntax-null: #9a9a9a;
+  --method-get: #0f8a4f;
+  --method-post: #b97a0a;
+  --method-put: #0b6bcb;
+  --method-patch: #7c5cbf;
+  --method-delete: #d92d20;
+}
+
+html {
+  text-underline-offset: 3px;
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--accent);
+}
+
+code,
+pre {
+  font-family: var(--font-mono, ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace);
+  font-size: var(--code-font-size, 13px);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Flat scrollbars — no rounded thumbs, no track chrome */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Flat focus: 1px accent outline, no glow */
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

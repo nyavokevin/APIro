@@ -1,0 +1,40 @@
+id: GET-health-7a00a3
+method: GET
+path: /health
+status: 200
+body: |-
+  {
+    "status": "example_j491",
+    "uptimeSeconds": 42
+  }
+delayMs: 0
+headers:
+  Content-Type: application/json
+variants:
+- name: validation-error
+  status: 400
+  body: |-
+    {
+      "details": "Invalid input",
+      "error": "validation failed"
+    }
+  headers: {}
+  trigger: header:x-mock-variant=validation-error
+- name: server-error
+  status: 500
+  body: |-
+    {
+      "error": "internal server error"
+    }
+  headers: {}
+  trigger: header:x-mock-variant=server-error
+- name: empty-list
+  status: 200
+  body: '[]'
+  headers: {}
+  trigger: query:empty=true
+state:
+  scope: health
+  operation: list
+  keyFrom: auto
+delay: null

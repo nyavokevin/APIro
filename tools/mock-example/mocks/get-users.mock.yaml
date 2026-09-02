@@ -1,0 +1,46 @@
+id: GET-users-085f7e
+method: GET
+path: /users
+status: 200
+body: |-
+  [
+    {
+      "avatarUrl": "https://example.com/resource",
+      "createdAt": "2026-09-01T17:48:46.531027400+00:00",
+      "email": "user83u@example.com",
+      "id": "dec028e4-50ae-4618-bf7e-305f106393a1",
+      "isActive": true,
+      "name": "John Doe"
+    }
+  ]
+delayMs: 0
+headers:
+  Content-Type: application/json
+variants:
+- name: validation-error
+  status: 400
+  body: |-
+    {
+      "details": "Invalid input",
+      "error": "validation failed"
+    }
+  headers: {}
+  trigger: header:x-mock-variant=validation-error
+- name: server-error
+  status: 500
+  body: |-
+    {
+      "error": "internal server error"
+    }
+  headers: {}
+  trigger: header:x-mock-variant=server-error
+- name: empty-list
+  status: 200
+  body: '[]'
+  headers: {}
+  trigger: query:empty=true
+state:
+  scope: users
+  operation: list
+  keyFrom: auto
+delay: null

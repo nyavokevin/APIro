@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@renderer/*": ["src/renderer/src/*"],
+      "@main/*": ["src/main/*"]
+    }
+  },
+  "include": ["src/renderer/src", "src/shared", "src/main/services/seed-generator.ts", "src/main/services/variable-resolver.ts", "src/main/services/importers.ts", "src/main/services/collection-generator.ts", "src/main/services/route-scanner.ts", "src/main/services/environment-parsers.ts", "src/main/services/environment-exporters.ts", "src/main/services/collection-exporters.ts", "src/main/services/keyring.ts"],
+  "exclude": ["src/main/services/storage", "src/main/node-sqlite.d.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

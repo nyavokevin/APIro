@@ -1,0 +1,34 @@
+id: DELETE-users--id-f62988
+method: DELETE
+path: /users/{id}
+status: 204
+body: |-
+  {
+    "message": "ok"
+  }
+delayMs: 0
+headers:
+  Content-Type: application/json
+variants:
+- name: validation-error
+  status: 400
+  body: |-
+    {
+      "details": "Invalid input",
+      "error": "validation failed"
+    }
+  headers: {}
+  trigger: header:x-mock-variant=validation-error
+- name: server-error
+  status: 500
+  body: |-
+    {
+      "error": "internal server error"
+    }
+  headers: {}
+  trigger: header:x-mock-variant=server-error
+state:
+  scope: users
+  operation: delete
+  keyFrom: auto
+delay: null

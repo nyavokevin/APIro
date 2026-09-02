@@ -1,0 +1,39 @@
+id: POST-users-20ca00
+method: POST
+path: /users
+status: 201
+body: |-
+  {
+    "avatarUrl": "https://example.com/resource",
+    "createdAt": "2026-09-01T17:48:46.531123100+00:00",
+    "email": "userbx2@example.com",
+    "id": "5c7de119-60c4-40a2-b37a-c6c393a84121",
+    "isActive": true,
+    "name": "John Doe"
+  }
+delayMs: 0
+headers:
+  Content-Type: application/json
+variants:
+- name: validation-error
+  status: 400
+  body: |-
+    {
+      "details": "Invalid input",
+      "error": "validation failed"
+    }
+  headers: {}
+  trigger: header:x-mock-variant=validation-error
+- name: server-error
+  status: 500
+  body: |-
+    {
+      "error": "internal server error"
+    }
+  headers: {}
+  trigger: header:x-mock-variant=server-error
+state:
+  scope: users
+  operation: create
+  keyFrom: auto
+delay: null

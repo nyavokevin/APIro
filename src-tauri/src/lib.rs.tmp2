@@ -1,0 +1,202 @@
+﻿//! APIForge library: Tauri commands exposed to the renderer, wired to the
+//! shared HTTP / Git / Mock / YAML / Store engines.
+
+pub mod collections;
+pub mod git;
+pub mod http;
+pub mod mock;
+pub mod store;
+
+use collections::Node;
+use mock::{MockRegistry, MockServerInfo};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use store::Store;
+use tauri::State;
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvVar {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceInfo {
+    pub path: String,
+    pub is_git_repo: bool,
+    pub branch: Option<String>,
+}
+
+/// Default workspace: ~/APIForge (Git-native collections live here).
+pub fn default_workspace() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("APIForge")
+}
+
+#[tauri::command]
+pub async fn requests_execute(
+    request: http::RequestInput,
+    variables: Vec<EnvVar>,
+    store: State<'_, Store>,
+) -> Result<http::ApiResponse, String> {
+    let mut vars: HashMap<String, String> = HashMap::new();
+    for v in variables {
+        vars.insert(v.key, v.value);
+    }
+    let response = http::execute(&request, &vars).await;
+    let _ = store.record_history(
+        None,
+        &request.method,
+        &response_url(&request, &vars),
+        Some(response.status_code).filter(|s| *s > 0),
+        Some(response.response_time).filter(|t| *t > 0),
+        &serde_json::to_string(&request.headers).unwrap_or_default(),
+        &serde_json::to_string(&response.headers).unwrap_or_default(),
+        &response.body,
+        response.error.as_deref(),
+    );
+    Ok(response)
+}
+
+fn response_url(request: &http::RequestInput, vars: &HashMap<String, String>) -> String {
+    http::resolve(&request.url, vars)
+}
+
+#[tauri::command]
+pub fn requests_history(limit: u32, store: State<'_, Store>) -> Result<Vec<store::HistoryItem>, String> {
+    store.history(limit)
+}
+
+#[tauri::command]
+pub fn workspace_info(store: State<'_, Store>) -> Result<WorkspaceInfo, String> {
+    let path = store
+        .get_setting("workspace_path")?
+        .map(PathBuf::from)
+        .unwrap_or_else(default_workspace);
+    let is_repo = git::is_repo(&path);
+    Ok(WorkspaceInfo {
+        path: path.to_string_lossy().to_string(),
+        is_git_repo: is_repo,
+        branch: if is_repo { git::branch(&path).ok() } else { None },
+    })
+}
+
+#[tauri::command]
+pub fn git_status(dir: String) -> Result<Vec<String>, String> {
+    git::status(PathBuf::from(dir).as_path())
+}
+
+#[tauri::command]
+pub fn git_diff(dir: String, path: Option<String>) -> Result<String, String> {
+    let dir = PathBuf::from(dir);
+    match path {
+        Some(p) => git::diff_file(&dir, &p),
+        None => git::diff_all(&dir),
+    }
+}
+
+#[tauri::command]
+pub fn mock_start(info: MockServerInfo, registry: State<'_, MockRegistry>) -> Result<(), String> {
+    registry.start(info)
+}
+
+#[tauri::command]
+pub fn mock_stop(id: String, registry: State<'_, MockRegistry>) -> Result<(), String> {
+    registry.stop(&id)
+}
+
+#[tauri::command]
+pub fn mock_hits(id: String, registry: State<'_, MockRegistry>) -> Result<Vec<mock::MockHit>, String> {
+    registry.hits(&id)
+}
+
+#[tauri::command]
+pub fn yaml_read_tree(dir: Option<String>) -> Result<Vec<Node>, String> {
+    let dir = dir.map(PathBuf::from).unwrap_or_else(default_workspace);
+    collections::read_tree(&dir)
+}
+
+#[tauri::command]
+pub fn yaml_save_tree(dir: Option<String>, tree: Node) -> Result<Vec<String>, String> {
+    let dir = dir.map(PathBuf::from).unwrap_or_else(default_workspace);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    collections::write_tree(&tree, &dir).map(|files| {
+        files
+            .into_iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect()
+    })
+}
+
+#[tauri::command]
+pub fn yaml_replace_all(dir: Option<String>, nodes: Vec<Node>) -> Result<Vec<String>, String> {
+    let dir = dir.map(PathBuf::from).unwrap_or_else(default_workspace);
+    collections::replace_all(&nodes, &dir).map(|files| {
+        files
+            .into_iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect()
+    })
+}
+
+#[tauri::command]
+pub fn settings_get(key: String, store: State<'_, Store>) -> Result<Option<String>, String> {
+    store.get_setting(&key)
+}
+
+#[tauri::command]
+pub fn settings_set(key: String, value: String, store: State<'_, Store>) -> Result<(), String> {
+    store.set_setting(&key, &value)
+}
+
+#[tauri::command]
+pub fn cookies_for(domain: String, store: State<'_, Store>) -> Result<Vec<store::CookieRow>, String> {
+    store.cookies_for(&domain)
+}
+
+#[tauri::command]
+pub fn keyring_set(service: String, key: String, value: String) -> Result<(), String> {
+    let entry = keyring::Entry::new(&service, &key).map_err(|e| e.to_string())?;
+    entry.set_password(&value).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn keyring_get(service: String, key: String) -> Result<Option<String>, String> {
+    let entry = keyring::Entry::new(&service, &key).map_err(|e| e.to_string())?;
+    match entry.get_password() {
+        Ok(v) => Ok(Some(v)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+pub fn run() {
+    let store = Store::open().expect("failed to open local store");
+    tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
+        .manage(store)
+        .manage(MockRegistry::new())
+        .invoke_handler(tauri::generate_handler![
+            requests_execute,
+            requests_history,
+            workspace_info,
+            git_status,
+            git_diff,
+            mock_start,
+            mock_stop,
+            mock_hits,
+            yaml_read_tree,
+            yaml_save_tree,
+            settings_get,
+            settings_set,
+            cookies_for,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+

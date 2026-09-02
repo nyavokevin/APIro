@@ -1,0 +1,13 @@
+﻿pub mod collections;
+pub mod git;
+pub mod http;
+pub mod mock;
+pub mod store;
+use serde::Deserialize;
+use std::collections::HashMap;
+use tauri::State;
+use store::Store;
+#[derive(Debug, Clone, Deserialize)] #[serde(rename_all = "camelCase")] pub struct EnvVar { pub key: String, pub value: String, }
+#[tauri::command] async fn test_async(request: http::RequestInput, variables: Vec<EnvVar>, store: State<'_, Store>) -> Result<http::ApiResponse, String> { Ok(http::ApiResponse { id: "".into(), status_code: 200, status_text: "".into(), headers: HashMap::new(), body: "".into(), content_type: "".into(), response_time: 0, size: 0, timeline: http::Timing { dns: 0, tcp: 0, tls: 0, ttfb: 0, download: 0, total: 0 }, cookies: vec![], error: None }) }
+pub fn run() { let s = Store::open().unwrap(); tauri::Builder::default().manage(s).invoke_handler(tauri::generate_handler![test_async]).run(tauri::generate_context!()).expect("")}
+

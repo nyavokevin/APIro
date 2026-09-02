@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2/capability",
+  "identifier": "default",
+  "description": "Default capability for APIForge — Tauri-only, YAML authoritative",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-start-dragging",
+    "core:window:allow-toggle-maximize",
+    "fs:default",
+    "fs:allow-read",
+    "fs:allow-read-text-file",
+    "fs:allow-write",
+    "fs:allow-write-text-file",
+    "fs:allow-exists",
+    "fs:allow-mkdir",
+    "fs:allow-read-dir",
+    "fs:allow-remove",
+    "fs:allow-stat",
+    "fs:allow-download-write-recursive",
+    "shell:allow-open",
+    "dialog:default",
+    "dialog:allow-open"
+  ]
+}
