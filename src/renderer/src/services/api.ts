@@ -90,9 +90,13 @@ export const api = {
       invoke<Collection>('collections:import', payload),
   },
   requests: {
-    execute: (request: RequestData, variables: EnvironmentVariable[] = []) =>
-      invoke<ResponseData>('requests:execute', request, variables),
+    execute: (request: RequestData, variables: EnvironmentVariable[] = [], runId?: string) =>
+      invoke<ResponseData>('requests:execute', request, variables, runId ?? null),
+    cancel: (runId: string) => invoke<void>('requests:cancel', runId),
     history: (limit = 100) => invoke<HistoryItem[]>('requests:history', limit),
+  },
+  testing: {
+    runRhai: (script: string) => invoke<import('@shared/types/request').TestResult[]>('testing:runRhai', script),
   },
   environments: {
     list: () => invoke<Environment[]>('environments:list'),

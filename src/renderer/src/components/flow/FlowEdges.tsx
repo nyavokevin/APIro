@@ -6,6 +6,7 @@ interface Props {
   hoveredEdgeId: string | null;
   activeEdgeId: string | null;
   onHover: (id: string | null) => void;
+  impactedEdgeIds?: Set<string>;
 }
 
 function bezierPath(s: FlowNode, t: FlowNode): string {
@@ -31,7 +32,7 @@ function bezierPath(s: FlowNode, t: FlowNode): string {
 
 
 
-export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover }: Props) {
+export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover, impactedEdgeIds }: Props) {
   const byId = new Map(nodes.map((n) => [n.id, n] as const));
 
   return (
@@ -67,14 +68,16 @@ export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover }
         const d = bezierPath(s, t);
         const isActive = activeEdgeId === e.id;
         const isHovered = hoveredEdgeId === e.id;
+        const isImpacted = impactedEdgeIds?.has(e.id);
         const marker =
+          isImpacted ? 'url(#flow-arrow-err)' :
           e.edgeType === 'authFlow' ? 'url(#flow-arrow-auth)' :
           e.edgeType === 'sequence' ? 'url(#flow-arrow-seq)' :
           e.edgeType === 'errorFlow' ? 'url(#flow-arrow-err)' : 'url(#flow-arrow-data)';
-        const strokeWidth = isActive ? 3 : isHovered ? 2.6 : e.edgeType === 'sequence' ? 1.5 : 2;
-        const opacity = e.edgeType === 'sequence' ? 0.55 : 0.95;
+        const strokeWidth = isImpacted ? 3 : isActive ? 3 : isHovered ? 2.6 : e.edgeType === 'sequence' ? 1.5 : 2;
+        const opacity = isImpacted ? 1 : e.edgeType === 'sequence' ? 0.55 : 0.95;
         const dash = e.edgeType === 'sequence' ? '6 5' : undefined;
-        const sw = isActive ? '#ededed' : e.color;
+        const sw = isImpacted ? '#EF4444' : isActive ? '#ededed' : e.color;
         const mid = {
           x: (s.x + t.x + s.width) / 2 + (s.width / 2) - 0,
           y: (s.y + t.y) / 2 + 36,
@@ -92,7 +95,7 @@ export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover }
             <path
               d={d}
               fill="none"
-              stroke={isActive ? '#ededed' : e.color}
+              stroke={isImpacted ? '#EF4444' : isActive ? '#ededed' : e.color}
               strokeWidth={strokeWidth}
               strokeDasharray={dash}
               markerEnd={marker}

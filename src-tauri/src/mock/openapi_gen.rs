@@ -113,6 +113,10 @@ pub fn generate_from_openapi(spec: &Value, opts: &GenerationOptions) -> Generati
                 variants,
                 state: infer_state_config(path, method),
                 delay: None,
+
+                chaos_latency: None,
+
+                chaos_error_rate: None,
             };
 
             // Avoid duplicates

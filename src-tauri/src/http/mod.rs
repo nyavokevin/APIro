@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use tokio_util::sync::CancellationToken;
 
 pub type Headers = HashMap<String, String>;
 
@@ -266,8 +267,25 @@ fn encode_body(body_type: &str, body: &str, vars: &HashMap<String, String>) -> (
     }
 }
 
+pub fn error_response_cancelled() -> ApiResponse {
+    ApiResponse {
+        id: uuid::Uuid::new_v4().to_string(),
+        status_code: 0,
+        status_text: "Cancelled".into(),
+        headers: Headers::new(),
+        body: "Request cancelled".into(),
+        content_type: "text/plain".into(),
+        response_time: 0,
+        size: 0,
+        timeline: Timing::default(),
+        cookies: vec![],
+        error: Some("Request cancelled".into()),
+    }
+}
+
 /// Execute an HTTP request, streaming the body in chunks while timing phases.
-pub async fn execute(input: &RequestInput, vars: &HashMap<String, String>) -> ApiResponse {
+/// CancellationToken allows aborting mid-flight (used by CollectionRunner Cancel).
+pub async fn execute(input: &RequestInput, vars: &HashMap<String, String>, cancel: Option<CancellationToken>) -> ApiResponse {
     let started = Instant::now();
     let mut url = resolve(&input.url, vars);
     let params = enabled_pairs(&input.params, vars);
@@ -313,9 +331,20 @@ pub async fn execute(input: &RequestInput, vars: &HashMap<String, String>) -> Ap
         req = req.body(payload);
     }
 
-    let response = match req.send().await {
-        Ok(r) => r,
-        Err(e) => return error_response(&e.to_string()),
+    if let Some(t) = cancel.as_ref() { if t.is_cancelled() { return error_response_cancelled(); } }
+    let response = if let Some(t) = cancel.clone() {
+        tokio::select! {
+            res = req.send() => match res {
+                Ok(r) => r,
+                Err(e) => return error_response(&e.to_string()),
+            },
+            _ = t.cancelled() => return error_response_cancelled(),
+        }
+    } else {
+        match req.send().await {
+            Ok(r) => r,
+            Err(e) => return error_response(&e.to_string()),
+        }
     };
     let ttfb = started.elapsed().as_millis() as u64;
 
@@ -340,15 +369,25 @@ pub async fn execute(input: &RequestInput, vars: &HashMap<String, String>) -> Ap
         })
         .collect();
 
-    // Stream the body in chunks so large payloads stay responsive.
+    // Stream the body in chunks so large payloads stay responsive. Cancellable.
     let mut body: Vec<u8> = Vec::new();
     {
         use futures_util::StreamExt;
         let mut stream = response.bytes_stream();
-        while let Some(chunk) = stream.next().await {
-            match chunk {
-                Ok(bytes) => body.extend_from_slice(&bytes),
-                Err(e) => return error_response(&e.to_string()),
+        loop {
+            let next = if let Some(t) = cancel.clone() {
+                tokio::select! {
+                    chunk = stream.next() => chunk,
+                    _ = t.cancelled() => return error_response_cancelled(),
+                }
+            } else {
+                stream.next().await
+            };
+            match next {
+                Some(Ok(bytes)) => body.extend_from_slice(&bytes),
+                Some(Err(e)) => return error_response(&e.to_string()),
+                None => break,
+                _ => break,
             }
         }
     }

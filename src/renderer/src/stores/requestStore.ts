@@ -87,14 +87,62 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       tabs: state.tabs.map((t) => (t.id === id ? { ...t, loading: true } : t)),
     }));
     try {
-      const vars = useWorkspaceStore.getState().variables();
-      const response = await api.requests.execute(tab.request, vars);
-      if (response.testResults) set({ testResults: response.testResults });
+      let vars = useWorkspaceStore.getState().variables();
+      let effectiveReq = tab.request;
+      // auto-seed if enabled (Phase2) — applied before pre-request
+      if ((effectiveReq as unknown as { autoSeed?: boolean }).autoSeed) {
+        try {
+          const { generateBulkSeed } = await import('@main/services/seed-generator');
+          if (effectiveReq.body && effectiveReq.body.trim()) {
+            const strategy = (effectiveReq as unknown as { seedStrategy?: string }).seedStrategy || 'emptyOnly';
+            const seeded = generateBulkSeed(effectiveReq.body, { strategy: strategy as never });
+            effectiveReq = { ...effectiveReq, body: seeded };
+          }
+        } catch {}
+      }
+      // pre-request script zero-npm
+      if (effectiveReq.preRequestScript && effectiveReq.preRequestScript.trim()) {
+        try {
+          const { runPreRequestBrowser } = await import('../lib/testExecutor');
+          const pre = runPreRequestBrowser(effectiveReq.preRequestScript, effectiveReq, vars);
+          effectiveReq = pre.request;
+          vars = pre.variables;
+        } catch {}
+      }
+      const response = await api.requests.execute(effectiveReq, vars);
+      // run tests via browser executor if script present and no testResults from backend
+      let testResults = response.testResults;
+      if ((!testResults || testResults.length===0) && tab.request.testScript && tab.request.testScript.trim()) {
+        try {
+          const { runTestsBrowser } = await import('../lib/testExecutor');
+          testResults = runTestsBrowser(effectiveReq, response, tab.request.testScript, vars);
+          (response as unknown as { testResults: typeof testResults }).testResults = testResults;
+        } catch {}
+      }
+      if (testResults) set({ testResults });
       set((state) => ({
         tabs: state.tabs.map((t) =>
-          t.id === id ? { ...t, response, loading: false } : t
+          t.id === id ? { ...t, request: effectiveReq, response, loading: false } : t
         ),
       }));
+      // toasts
+      try {
+        const { useNotificationStore } = await import('./notificationStore');
+        const addToast = useNotificationStore.getState().addToast;
+        if (response.error || response.statusCode===0) {
+          addToast({ variant:'error', title:'Request failed', description: response.error || `Status ${response.statusCode}` });
+        } else if (testResults && testResults.some(r=>!r.passed)) {
+          addToast({ variant:'error', title:`${response.statusCode} ${response.statusText}`, description:`${testResults.filter(r=>!r.passed).length} tests failed`, actionLabel:'View Results', onAction:()=>{ /* stay on workspace results tab */ } });
+        } else if (response.statusCode>=400) {
+          addToast({ variant:'warning', title:`${response.statusCode} ${response.statusText}`, description:`${response.responseTime}ms` });
+        } else {
+          addToast({ variant:'success', title:`${response.statusCode} ${response.statusText}`, description:`${response.responseTime}ms · ${response.size}B` });
+        }
+        // snapshot seed if autoSeed
+        if ((tab.request as unknown as { autoSeed?:boolean }).autoSeed) {
+          try { const { pushSeedSnapshot } = await import('../lib/seedHistory'); pushSeedSnapshot(tab.request.id, effectiveReq.body); } catch {}
+        }
+      } catch {}
     } catch (err) {
       set((state) => ({
         tabs: state.tabs.map((t) =>
@@ -119,6 +167,10 @@ export const useRequestStore = create<RequestState>((set, get) => ({
             : t
         ),
       }));
+      try {
+        const { useNotificationStore } = await import('./notificationStore');
+        useNotificationStore.getState().addToast({ variant:'error', title:'Request error', description: err instanceof Error ? err.message : String(err) });
+      } catch {}
     }
   },
   getActiveTab: () => {

@@ -82,33 +82,37 @@ export function generateFieldValue(fieldName: string): string {
   return value;
 }
 
-function generateForValue(key: string, value: unknown): unknown {
+function generateForValue(key: string, value: unknown, strategy: 'emptyOnly' | 'overwrite' = 'overwrite'): unknown {
   if (value === null || value === undefined) {
     return generateFieldValue(key);
   }
   if (typeof value === 'string') {
-    // if the string looks like a value rather than a template, generate a replacement
+    if (strategy === 'emptyOnly' && value.trim() !== '' && !/^\{\{.*\}\}$/.test(value.trim())) return value;
+    // preserve mustache templates
+    if (/^\{\{.*\}\}$/.test(value.trim())) return value;
     return generateFieldValue(key);
   }
   if (typeof value === 'number') {
+    if (strategy === 'emptyOnly') return value;
     return faker.number.int({ min: 1, max: 1000 });
   }
   if (typeof value === 'boolean') {
+    if (strategy === 'emptyOnly') return value;
     return faker.datatype.boolean();
   }
   if (Array.isArray(value)) {
-    return value.map((item) => generateForValue(key, item));
+    return value.map((item) => generateForValue(key, item, strategy));
   }
   if (typeof value === 'object') {
-    return generateObject(value as Record<string, unknown>);
+    return generateObject(value as Record<string, unknown>, strategy);
   }
   return value;
 }
 
-function generateObject(obj: Record<string, unknown>): Record<string, unknown> {
+function generateObject(obj: Record<string, unknown>, strategy: 'emptyOnly' | 'overwrite' = 'overwrite'): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
-    out[key] = generateForValue(key, value);
+    out[key] = generateForValue(key, value, strategy);
   }
   return out;
 }
@@ -117,18 +121,48 @@ function generateObject(obj: Record<string, unknown>): Record<string, unknown> {
  * Parses a JSON body and generates seed values for every key it contains.
  * Returns a pretty-printed JSON string (or the original string on parse error).
  */
-export function generateBulkSeed(body: string): string {
+export function generateBulkSeed(body: string, opts?: { strategy?: 'emptyOnly' | 'overwrite'; count?: number; seed?: number }): string {
+  if (opts?.seed !== undefined) faker.seed(opts.seed);
   if (!body || !body.trim()) return body;
   try {
     const parsed = JSON.parse(body);
+    if (Array.isArray(parsed)) {
+      // auto-seed arrays: generate N copies from first element template
+      const template = parsed[0] as Record<string, unknown> | undefined;
+      const count = opts?.count && opts.count > 0 ? opts.count : parsed.length || 1;
+      if (!template || typeof template !== 'object') return body;
+      const arr = Array.from({ length: count }, () => generateObject(template as Record<string, unknown>, opts?.strategy));
+      return JSON.stringify(arr, null, 2);
+    }
     if (parsed && typeof parsed === 'object') {
-      const generated = generateObject(parsed as Record<string, unknown>);
+      const generated = generateObject(parsed as Record<string, unknown>, opts?.strategy);
       return JSON.stringify(generated, null, 2);
     }
     return body;
   } catch {
+    // try form-data/urlencoded style fallback only if looks like querystring
+    if (body.includes('=') || body.includes('&')) {
+      try {
+        const params = new URLSearchParams(body);
+        if ([...params.keys()].length>0) {
+          const out = new URLSearchParams();
+          for (const [k,v] of params.entries()) {
+            const strategy = opts?.strategy;
+            if (strategy==='emptyOnly' && v.trim()!=='') out.set(k,v);
+            else out.set(k, generateFieldValue(k));
+          }
+          return out.toString();
+        }
+      } catch {}
+    }
     return body;
+  } finally {
+    if (opts?.seed !== undefined) faker.seed();
   }
+}
+
+export function generateBulkArray(templateBody: string, count: number): string {
+  return generateBulkSeed(templateBody, { count });
 }
 
 /** Returns the last 20 generated values per field name. */

@@ -18,6 +18,7 @@ export function Flow() {
   const [showDataFlow, setShowDataFlow] = useState(true);
   const [graph, setGraph] = useState<FlowGraph>({ nodes: [], edges: [], layout: 'hierarchical' });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [impactMode, setImpactMode] = useState(false);
 
   // Build list of collection options (top-level + folders)
   const collectionOptions = useMemo(() => {
@@ -134,6 +135,14 @@ export function Flow() {
             </select>
           </label>
 
+          <button
+            onClick={()=>setImpactMode(v=>!v)}
+            className={`px-2 py-1 text-xs font-medium border ${impactMode?'bg-[rgba(239,68,68,0.15)] text-[#EF4444] border-[#EF4444]':'bg-[var(--bg-primary)] text-[var(--text-secondary)] border-[var(--border)]'}`}
+            style={{borderRadius:'0px'}}
+            title="Impact graph — what breaks if this changes"
+          >
+            {impactMode?'Impact ON':'Impact'}
+          </button>
           <div className="flex items-center gap-1 rounded border border-[var(--border)] bg-[var(--bg-primary)] p-0.5">
             {([
               { key: 'data', label: 'Data', active: showDataFlow, setter: setShowDataFlow, color: '#4d9fff' },
@@ -159,6 +168,11 @@ export function Flow() {
 
       {/* Stats bar */}
       <div className="flex flex-wrap gap-1.5 border-b border-[var(--border)] bg-[var(--bg-primary)] px-4 py-2 text-xs">
+        {impactMode && selectedNodeId && (
+          <span className="px-2 py-1 text-xs font-medium" style={{ background:'rgba(239,68,68,0.10)', color:'#EF4444', border:'1px solid #EF4444', borderRadius:'0px' }}>
+            Impact: downstream of {graph.nodes.find(n=>n.id===selectedNodeId)?.label ?? selectedNodeId} highlighted in red — click a node
+          </span>
+        )}
         <span className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] px-2 py-1 text-[var(--text-secondary)]">
           <span className="font-semibold text-[var(--text-primary)]">{stats.nodes}</span> requests
         </span>
@@ -180,6 +194,7 @@ export function Flow() {
           onNodesChange={handleNodesChange}
           onNodeSelect={setSelectedNodeId}
           selectedNodeId={selectedNodeId}
+          impactMode={impactMode}
         />
       </div>
 

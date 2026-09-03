@@ -204,9 +204,9 @@ export function Collections() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
+                    onClick={async () => {
                       if (confirm(`Delete “${selected.name}” and its ${collectRequests(selected).length} request(s)?`)) {
-                        void useCollectionStore.getState().remove(selected.id);
+                        try { await useCollectionStore.getState().remove(selected.id); const { useNotificationStore } = await import('../stores/notificationStore'); useNotificationStore.getState().addToast({ variant:'success', title:'Deleted', description:selected.name }); } catch(e){ const { useNotificationStore } = await import('../stores/notificationStore'); useNotificationStore.getState().addToast({ variant:'error', title:'Delete failed', description: String(e) }); }
                       }
                     }}
                   >

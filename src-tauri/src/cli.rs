@@ -251,7 +251,7 @@ fn run(args: &[String]) {
     let mut failed = 0usize;
 
     for (label, req) in requests {
-        let resp = runtime.block_on(apiforge_lib::http::execute(&req, &vars));
+        let resp = runtime.block_on(apiforge_lib::http::execute(&req, &vars, None));
         let status = resp.status_code;
         let ok = (200..300).contains(&status) && resp.error.is_none();
         if !ok { failed += 1; }

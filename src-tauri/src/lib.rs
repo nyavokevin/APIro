@@ -9,21 +9,28 @@ pub mod http;
 pub mod mock;
 pub mod scanner;
 pub mod store;
+pub mod testing;
 
 use mock::MockRegistry;
 use store::Store;
+use dashmap::DashMap;
+use tokio_util::sync::CancellationToken;
 
 pub fn run() {
     let store = Store::open().expect("failed to open local store");
+    let cancel_map: DashMap<String, CancellationToken> = DashMap::new();
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(store)
         .manage(MockRegistry::new())
+        .manage(cancel_map)
         .invoke_handler(tauri::generate_handler![
             commands::requests_execute,
+            commands::requests_cancel,
             commands::requests_history,
+            testing::engine::testing_run_rhai,
             commands::workspace_info,
             commands::git_status,
             commands::git_diff,

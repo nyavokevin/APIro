@@ -5,43 +5,99 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Surfaces
+        // APIro Backgrounds
+        'api-bg-base': '#000000',
+        'api-bg-sidebar': '#0A0A0A',
+        'api-bg-card': '#121212',
+        'api-bg-input': '#121212',
+        'api-bg-header': '#000000',
+        'api-bg-hover': '#1A1A1A',
+        'api-bg-dropdown': '#121212',
+        // Text
+        'api-text-primary': '#E2E8F0',
+        'api-text-secondary': '#8F909E',
+        'api-text-white': '#FFFFFF',
+        'api-text-green': '#10B981',
+        'api-text-slate': '#94A3B8',
+        'api-text-violet': '#8B5CF6',
+        // Borders
+        'api-border-default': '#262626',
+        'api-border-hover': '#404040',
+        'api-border-selected': '#8B5CF6',
+        // Accents
+        'api-violet': '#8B5CF6',
+        'api-violet-hover': '#7C3AED',
+        'api-green': '#10B981',
+        'api-red': '#EF4444',
+        'api-yellow': '#FBBF24',
+        'api-slate': '#94A3B8',
+        // Legacy aliases
         bg: 'var(--bg-primary)',
         panel: 'var(--bg-secondary)',
         'panel-alt': 'var(--bg-tertiary)',
         'panel-hover': 'var(--bg-hover)',
-        // Borders
         border: 'var(--border)',
         'border-strong': 'var(--border-strong)',
-        // Text
         content: 'var(--text-primary)',
         muted: 'var(--text-secondary)',
         faint: 'var(--text-muted)',
-        // Accent
         accent: 'var(--accent)',
         'accent-hover': 'var(--accent-hover)',
         'accent-subtle': 'var(--accent-subtle)',
         'accent-ink': 'var(--accent-ink)',
-        // Semantic
         success: 'var(--success)',
         warning: 'var(--warning)',
         danger: 'var(--danger)',
         info: 'var(--info)',
-        // Syntax
         'syntax-string': 'var(--syntax-string)',
         'syntax-number': 'var(--syntax-number)',
         'syntax-boolean': 'var(--syntax-boolean)',
         'syntax-null': 'var(--syntax-null)',
-        // HTTP methods
         'method-get': 'var(--method-get)',
         'method-post': 'var(--method-post)',
         'method-put': 'var(--method-put)',
         'method-patch': 'var(--method-patch)',
         'method-delete': 'var(--method-delete)',
       },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      },
+      fontSize: {
+        '2xs': ['11px', { lineHeight: '14px', fontWeight: '500' }],
+        xs: ['12px', { lineHeight: '16px', fontWeight: '500' }],
+        sm: ['13px', { lineHeight: '20px', fontWeight: '400' }],
+        base: ['15px', { lineHeight: '22px', fontWeight: '400' }],
+        lg: ['18px', { lineHeight: '26px', fontWeight: '500' }],
+        xl: ['20px', { lineHeight: '28px', fontWeight: '600' }],
+        '2xl': ['24px', { lineHeight: '32px', fontWeight: '600' }],
+      },
+      spacing: {
+        'api-1': '4px',
+        'api-2': '8px',
+        'api-3': '12px',
+        'api-4': '16px',
+        'api-5': '20px',
+        'api-6': '24px',
+        'api-8': '32px',
+        'api-10': '40px',
+        'api-12': '48px',
+      },
       borderRadius: {
-        // Flat design: minimal rounding only
-        DEFAULT: '2px',
+        DEFAULT: '0px',
+        sm: '0px',
+        md: '0px',
+        lg: '0px',
+        xl: '0px',
+        full: '9999px',
+      },
+      width: {
+        sidebar: '80px',
+      },
+      height: {
+        header: '64px',
+        input: '40px',
+        button: '36px',
       },
     },
   },

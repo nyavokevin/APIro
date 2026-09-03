@@ -62,12 +62,32 @@ export function KeyValueEditor({
             onChange={(e) => update(item.id, { key: e.target.value })}
             className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-2 py-1 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
           />
-          <input
-            value={item.value}
-            placeholder={valuePlaceholder}
-            onChange={(e) => update(item.id, { value: e.target.value })}
-            className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-2 py-1 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-          />
+          <div className="flex items-center gap-1">
+            <input
+              value={item.value}
+              placeholder={valuePlaceholder}
+              onChange={(e) => update(item.id, { value: e.target.value })}
+              className="w-full bg-[#121212] px-2 py-1 text-sm text-[#E2E8F0] outline-none"
+              style={{ border:'1px solid #262626', borderRadius:'0px' }}
+              onFocus={e=>e.currentTarget.style.borderColor='#8B5CF6'}
+              onBlur={e=>e.currentTarget.style.borderColor='#262626'}
+            />
+            <button
+              title="Seed value"
+              onClick={async ()=>{
+                const { generateFieldValue } = await import('@main/services/seed-generator');
+                const v = generateFieldValue(item.key || 'value');
+                update(item.id, { value: v });
+                const { useNotificationStore } = await import('../../stores/notificationStore');
+                useNotificationStore.getState().addToast({ variant:'info', title:'Seeded', description:`${item.key||'field'} → ${v}` });
+              }}
+              className="flex h-7 w-7 shrink-0 items-center justify-center text-[#8F909E] hover:text-[#8B5CF6] hover:bg-[#1A1A1A]"
+              style={{ border:'1px solid #262626', borderRadius:'0px' }}
+              aria-label="Seed value"
+            >
+              🎲
+            </button>
+          </div>
           <button
             onClick={() => remove(item.id)}
             className="flex h-7 w-7 items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-danger"

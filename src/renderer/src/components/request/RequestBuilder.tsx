@@ -2,7 +2,7 @@ import { ChevronDown, Send } from 'lucide-react';
 import type { HttpMethod, RequestData } from '@shared/types/request';
 import { HTTP_METHODS, METHOD_COLORS } from '@shared/constants/methods';
 import { syncParamsFromUrl } from '../../lib/urlParams';
-import { Button } from '../ui/Button';
+import { SecurityButton } from './SecurityButton';
 
 interface RequestBuilderProps {
   request: RequestData;
@@ -13,8 +13,6 @@ interface RequestBuilderProps {
 
 export function RequestBuilder({ request, loading, onChange, onSend }: RequestBuilderProps) {
   const handleUrlChange = (url: string) => {
-    // Auto-sync: any key/value pairs in the URL query string are listed
-    // in the Params table (rows keep their id/enabled state where possible).
     onChange({ url, params: syncParamsFromUrl(url, request.params) });
   };
 
@@ -23,22 +21,34 @@ export function RequestBuilder({ request, loading, onChange, onSend }: RequestBu
   };
 
   return (
-    <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-secondary)] p-2">
+    <div
+      className="flex items-center gap-3 bg-[#121212] shrink-0"
+      style={{ border: '1px solid #262626', borderRadius: '0px', padding: '20px', margin: '16px 32px 0 32px' }}
+    >
       <div className="relative shrink-0">
         <select
           value={request.method}
           onChange={(e) => handleMethodChange(e.target.value as HttpMethod)}
-          className="appearance-none rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] py-1.5 pl-3 pr-7 text-sm font-semibold outline-none focus:border-[var(--accent)]"
-          style={{ color: METHOD_COLORS[request.method] }}
+          className="appearance-none bg-transparent outline-none font-mono font-semibold"
+          style={{
+            border: '1px solid #262626',
+            borderRadius: '0px',
+            padding: '8px 32px 8px 12px',
+            fontSize: '13px',
+            lineHeight: '20px',
+            color: METHOD_COLORS[request.method],
+            background: 'transparent',
+            height: '40px',
+          }}
           aria-label="HTTP method"
         >
           {HTTP_METHODS.map((m) => (
-            <option key={m} value={m} style={{ color: 'var(--text-primary)' }}>
+            <option key={m} value={m} style={{ color: '#E2E8F0', background: '#121212' }}>
               {m}
             </option>
           ))}
         </select>
-        <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" strokeWidth={2} />
+        <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#8F909E]" strokeWidth={2} />
       </div>
 
       <input
@@ -48,12 +58,45 @@ export function RequestBuilder({ request, loading, onChange, onSend }: RequestBu
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSend();
         }}
-        className="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+        className="flex-1 bg-[#121212] text-[#E2E8F0] placeholder:text-[#8F909E] outline-none font-mono"
+        style={{
+          height: '40px',
+          border: '1px solid #262626',
+          borderRadius: '0px',
+          padding: '0 16px',
+          fontSize: '13px',
+          lineHeight: '20px',
+        }}
+        onFocus={(e) => (e.currentTarget.style.borderColor = '#8B5CF6')}
+        onBlur={(e) => (e.currentTarget.style.borderColor = '#262626')}
       />
 
-      <Button variant="primary" onClick={onSend} disabled={loading || !request.url} title="Send request — Ctrl+Enter in URL field">
+      <SecurityButton requestId={request.id} />
+
+      <button
+        onClick={onSend}
+        disabled={loading || !request.url}
+        title="Send request — Ctrl+Enter in URL field"
+        className="inline-flex items-center justify-center gap-2 font-semibold disabled:opacity-50 shrink-0"
+        style={{
+          background: '#8B5CF6',
+          color: '#FFFFFF',
+          border: 'none',
+          borderRadius: '0px',
+          padding: '8px 20px',
+          fontSize: '13px',
+          lineHeight: '20px',
+          height: '40px',
+        }}
+        onMouseEnter={(e) => {
+          if (!loading && request.url) (e.currentTarget as HTMLButtonElement).style.background = '#7C3AED';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = '#8B5CF6';
+        }}
+      >
         <Send size={14} /> {loading ? 'Sending…' : 'Send'}
-      </Button>
+      </button>
     </div>
   );
 }

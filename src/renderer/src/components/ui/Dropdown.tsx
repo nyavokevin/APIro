@@ -40,10 +40,11 @@ export function Dropdown({ trigger, items = [], groups, align = 'left', classNam
       {open && (
         <div
           className={cn(
-            'absolute z-40 mt-1 min-w-[160px] overflow-hidden rounded border border-border bg-panel-alt py-1',
+            'absolute z-40 mt-1 min-w-[160px] overflow-hidden bg-[#121212] py-1',
             align === 'right' ? 'right-0' : 'left-0',
             className
           )}
+          style={{ border: '1px solid #262626', borderRadius: '0px' }}
         >
           {groups
             ? groups.map((group) => (
@@ -58,7 +59,8 @@ export function Dropdown({ trigger, items = [], groups, align = 'left', classNam
                         item.onSelect?.();
                         setOpen(false);
                       }}
-                      className="block w-full px-3 py-1.5 text-left text-sm text-content hover:bg-panel-alt"
+                      className="block w-full px-3 py-1.5 text-left text-sm text-[#E2E8F0] hover:bg-[#1A1A1A] hover:text-[#E2E8F0]"
+                      style={{ borderRadius: '0px' }}
                     >
                       {item.label}
                     </button>
@@ -72,7 +74,8 @@ export function Dropdown({ trigger, items = [], groups, align = 'left', classNam
                     item.onSelect?.();
                     setOpen(false);
                   }}
-                  className="block w-full px-3 py-1.5 text-left text-sm text-content hover:bg-panel-alt"
+                  className="block w-full px-3 py-1.5 text-left text-sm text-[#E2E8F0] hover:bg-[#1A1A1A]"
+                  style={{ borderRadius: '0px' }}
                 >
                   {item.label}
                 </button>

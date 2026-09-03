@@ -16,9 +16,10 @@ interface Props {
   onNodesChange: (nodes: FlowGraph['nodes']) => void;
   onNodeSelect: (nodeId: string | null) => void;
   selectedNodeId: string | null;
+  impactMode?: boolean;
 }
 
-export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect, selectedNodeId }: Props) {
+export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect, selectedNodeId, impactMode = false }: Props) {
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [activeEdgeId, setActiveEdgeId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -161,6 +162,34 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
     }
   }, [graph.nodes]);
 
+  const selectedNode = selectedNodeId ? graph.nodes.find((n) => n.id === selectedNodeId) ?? null : null;
+
+  // Impact graph: downstream of selected node via dataFlow/authFlow (BFS) — must be before early return (hooks rule)
+  const { impactedNodeIds, impactedEdgeIds } = useMemo(() => {
+    if (!impactMode || !selectedNodeId) return { impactedNodeIds: new Set<string>(), impactedEdgeIds: new Set<string>() };
+    const depEdges = (graph.edges ?? []).filter(e => e.edgeType === 'dataFlow' || e.edgeType === 'authFlow');
+    const adj = new Map<string, string[]>();
+    for (const e of depEdges) {
+      if (!adj.has(e.source)) adj.set(e.source, []);
+      adj.get(e.source)!.push(e.target);
+    }
+    const visited = new Set<string>();
+    const edgeVisited = new Set<string>();
+    const queue: string[] = [selectedNodeId];
+    visited.add(selectedNodeId);
+    while (queue.length) {
+      const cur = queue.shift()!;
+      const neigh = adj.get(cur) ?? [];
+      for (const nb of neigh) {
+        const eid = depEdges.find(e => e.source===cur && e.target===nb)?.id;
+        if (eid) edgeVisited.add(eid);
+        if (!visited.has(nb)) { visited.add(nb); queue.push(nb); }
+      }
+    }
+    visited.delete(selectedNodeId);
+    return { impactedNodeIds: visited, impactedEdgeIds: edgeVisited };
+  }, [impactMode, selectedNodeId, graph.edges]);
+
   if (graph.nodes.length === 0) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-8 text-center">
@@ -177,8 +206,6 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
       </div>
     );
   }
-
-  const selectedNode = selectedNodeId ? graph.nodes.find((n) => n.id === selectedNodeId) ?? null : null;
 
   return (
     <div
@@ -263,25 +290,31 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
             hoveredEdgeId={hoveredEdgeId}
             activeEdgeId={activeEdgeId}
             onHover={setHoveredEdgeId}
+            impactedEdgeIds={impactMode ? impactedEdgeIds : undefined}
           />
-          {graph.nodes.map((n) => (
-            <div key={n.id} data-node>
-              <RequestNode
-                node={n}
-                selected={selectedNodeId === n.id}
-                dimmed={isPlaying && activeEdgeId ? (() => {
-                  const e = graph.edges.find((x) => x.id === activeEdgeId);
-                  return e ? e.source !== n.id && e.target !== n.id : false;
-                })() : false}
-                highlighted={isPlaying && activeEdgeId ? (() => {
-                  const e = graph.edges.find((x) => x.id === activeEdgeId);
-                  return e ? e.source === n.id || e.target === n.id : false;
-                })() : false}
-                onSelect={handleSelect}
-                onPointerDown={onNodePointerDown}
-              />
-            </div>
-          ))}
+          {graph.nodes.map((n) => {
+            const isImpacted = impactMode && impactedNodeIds.has(n.id);
+            const isSelected = selectedNodeId === n.id;
+            const isDimmedForImpact = impactMode && selectedNodeId && !isSelected && !isImpacted;
+            return (
+              <div key={n.id} data-node>
+                <RequestNode
+                  node={isImpacted ? { ...n, color: '#EF4444' } : n}
+                  selected={isSelected}
+                  dimmed={isDimmedForImpact || (isPlaying && activeEdgeId ? (() => {
+                    const e = graph.edges.find((x) => x.id === activeEdgeId);
+                    return e ? e.source !== n.id && e.target !== n.id : false;
+                  })() : false)}
+                  highlighted={isImpacted || (isPlaying && activeEdgeId ? (() => {
+                    const e = graph.edges.find((x) => x.id === activeEdgeId);
+                    return e ? e.source === n.id || e.target === n.id : false;
+                  })() : false)}
+                  onSelect={handleSelect}
+                  onPointerDown={onNodePointerDown}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
 

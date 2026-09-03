@@ -258,7 +258,7 @@ export function MockServerPanel() {
 }
 
 function RouteEditor({ routes, onChange }: { routes: MockRoute[]; onChange: (routes: MockRoute[]) => void }) {
-  const update = (id: string, patch: Partial<MockRoute>) => onChange(routes.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const update = (id: string, patch: Partial<MockRoute> & Record<string, unknown>) => onChange(routes.map((r) => (r.id === id ? { ...r, ...patch } as MockRoute : r)));
   const add = () => onChange([...routes, newRoute()]);
   const remove = (id: string) => onChange(routes.filter((r) => r.id !== id));
   return (
@@ -279,6 +279,19 @@ function RouteEditor({ routes, onChange }: { routes: MockRoute[]; onChange: (rou
             <Input value={r.body} onChange={(e) => update(r.id, { body: e.target.value })} placeholder='{"id":"123"}' className="font-mono text-xs" />
             <Input type="number" value={r.delay} onChange={(e) => update(r.id, { delay: parseInt(e.target.value, 10) || 0 })} title="Delay ms" className="text-xs" />
             <Button size="sm" variant="ghost" onClick={() => remove(r.id)}><Trash2 size={12} /></Button>
+          </div>
+          {/* Chaos injection per route — F */}
+          <div className="grid gap-2 rounded bg-[#0a0a0a] p-2" style={{ border:'1px solid #262626' }}>
+            <div className="flex items-center gap-2 text-xs text-[#8F909E]"><span className="font-semibold text-[#FBBF24]">Chaos</span> latency / error injection (local)</div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1 text-xs text-[#8F909E]">Latency jitter {(r as unknown as {chaosLatency?:number}).chaosLatency ?? 0}ms
+                <input type="range" min={0} max={5000} step={100} value={(r as unknown as {chaosLatency?:number}).chaosLatency ?? 0} onChange={e=>update(r.id, { chaosLatency: parseInt(e.target.value,10) } as unknown as Partial<MockRoute>)} className="accent-[#8B5CF6]" />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-[#8F909E]">Error rate {(r as unknown as {chaosErrorRate?:number}).chaosErrorRate ?? 0}%
+                <input type="range" min={0} max={50} step={5} value={(r as unknown as {chaosErrorRate?:number}).chaosErrorRate ?? 0} onChange={e=>update(r.id, { chaosErrorRate: parseInt(e.target.value,10) } as unknown as Partial<MockRoute>)} className="accent-[#EF4444]" />
+              </label>
+            </div>
+            <p className="text-[11px] text-[#8F909E]">Applies on top of fixed <code>delay</code>. Rust mock handler sleeps <code>delay + random(0..jitter)</code> and returns 5xx on <code>errorRate%</code> (Phase4 F).</p>
           </div>
           <details className="rounded bg-[var(--bg-tertiary)] px-2 py-1">
             <summary className="cursor-pointer text-xs text-[var(--text-secondary)]">Advanced — headers · variants · state</summary>

@@ -232,6 +232,10 @@ fn route_from_args(args: &Value) -> Result<MockRoute, String> {
         variants: vec![],
         state,
         delay: None,
+
+        chaos_latency: None,
+
+        chaos_error_rate: None,
     })
 }
 

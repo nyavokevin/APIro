@@ -41,7 +41,40 @@ function resolveDynamicFunctions(template: string): string {
         if (Number.isNaN(len)) return match;
         return randomString(len);
       }
+      case 'seed': {
+        const field = (args[0]?.replace(/^['"]|['"]$/g,'') || 'email').toLowerCase();
+        if (field.includes('email')) return faker.internet.email();
+        if (field.includes('name')) return faker.person.fullName();
+        if (field.match(/uuid|guid|id/)) return faker.string.uuid();
+        if (field.match(/phone|mobile/)) return faker.phone.number();
+        if (field.match(/city/)) return faker.location.city();
+        return faker.lorem.word();
+      }
+      case 'faker': {
+        const path = args[0]?.replace(/^['"]|['"]$/g,'') || '';
+        const parts = path.split('.');
+        try {
+          let cur: unknown = faker as unknown as Record<string,unknown>;
+          for (const p of parts) cur = (cur as Record<string,unknown>)[p];
+          if (typeof cur === 'function') return String((cur as ()=>unknown)());
+          if (cur != null) return String(cur);
+        } catch {}
+        return match;
+      }
       default:
+        if (fn.startsWith('seed:')) {
+          const field = fn.slice(5).toLowerCase();
+          if (field.includes('email')) return faker.internet.email();
+          return faker.lorem.word();
+        }
+        if (fn.startsWith('faker:')) {
+          const path = fn.slice(6);
+          try {
+            let cur: unknown = faker as unknown as Record<string,unknown>;
+            for (const p of path.split('.')) cur = (cur as Record<string,unknown>)[p];
+            if (typeof cur === 'function') return String((cur as ()=>unknown)());
+          } catch {}
+        }
         return match;
     }
   });

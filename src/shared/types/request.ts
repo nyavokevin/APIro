@@ -90,6 +90,10 @@ export interface RequestData {
   testScript?: string;
   collectionId?: string;
   parentId?: string;
+  autoSeed?: boolean;
+  seedStrategy?: 'emptyOnly' | 'overwrite';
+  seedCount?: number;
+  lockedSchema?: Record<string, unknown> | null;
 }
 
 export interface ResponseData {
@@ -244,6 +248,8 @@ export interface MockRoute {
   headers?: Record<string, string>;
   variants?: MockVariant[];
   state?: MockStateConfig | null;
+  chaosLatency?: number;
+  chaosErrorRate?: number;
 }
 
 export interface MockHit {

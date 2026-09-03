@@ -25,21 +25,19 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/80" onClick={onClose} style={{ background: 'rgba(0,0,0,0.8)' }} />
         <div
-          className={cn(
-            'relative z-10 max-h-[85vh] w-full max-w-lg overflow-auto rounded border border-border bg-panel',
-            className
-          )}
+          className={cn('relative z-10 max-h-[85vh] w-full overflow-auto bg-[#121212]', className)}
+          style={{ border: '1px solid #262626', borderRadius: '0px', maxWidth: '480px', padding: '0' }}
         >
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold text-content">{title}</h2>
-            <button onClick={onClose} className="text-muted hover:text-content" aria-label="Close">
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #262626' }}>
+            <h2 className="text-lg font-semibold text-[#E2E8F0]" style={{ fontSize: '18px', lineHeight: '26px', fontWeight: 600 }}>{title}</h2>
+            <button onClick={onClose} className="text-[#8F909E] hover:text-[#E2E8F0] p-1" aria-label="Close" style={{ borderRadius: '0px' }}>
               <X size={18} />
             </button>
           </div>
-          <div className="px-4 py-4">{children}</div>
-          {footer && <div className="flex justify-end gap-2 border-t border-border px-4 py-3">{footer}</div>}
+          <div className="px-6 py-6" style={{ padding: '24px' }}>{children}</div>
+          {footer && <div className="flex justify-end gap-2 px-6 py-4" style={{ borderTop: '1px solid #262626' }}>{footer}</div>}
       </div>
     </div>
   );

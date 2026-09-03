@@ -12,20 +12,18 @@ export function Settings() {
 
   const themes: { value: Theme; label: string }[] = [
     { value: 'dark', label: 'Dark' },
-    { value: 'light', label: 'Light' },
-    { value: 'system', label: 'System' },
   ];
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)]">
-        <SettingsIcon size={18} className="text-[var(--accent)]" /> Settings
+    <div className="mx-auto max-w-4xl p-6 bg-[#000000] min-h-full">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[#E2E8F0]">
+        <SettingsIcon size={18} className="text-[#8B5CF6]" /> Settings
       </h2>
 
       <section className="mb-6 max-w-md">
-        <h2 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">Appearance</h2>
-        <div className="rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] p-4">
-          <p className="mb-2 text-xs text-[var(--text-secondary)]">Theme</p>
+        <h2 className="mb-2 text-sm font-semibold text-[#E2E8F0]">Appearance</h2>
+        <div className="bg-[#121212] p-4" style={{ border: '1px solid #262626', borderRadius: '0px' }}>
+          <p className="mb-2 text-xs text-[#8F909E]">Theme — APIro is dark-native only</p>
           <div className="flex gap-2">
             {themes.map((t) => (
               <Button
@@ -38,21 +36,22 @@ export function Settings() {
               </Button>
             ))}
           </div>
-          <p className="mt-3 text-xs text-[var(--text-secondary)]">
-            Current: <span className="capitalize text-[var(--text-primary)]">{theme}</span>
+          <p className="mt-3 text-xs text-[#8F909E]">
+            Current: <span className="capitalize text-[#E2E8F0]">{theme}</span> — dark-native, zero light mode.
           </p>
         </div>
       </section>
 
       <section className="mb-6 max-w-md">
-        <h2 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">Fonts</h2>
-        <div className="rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] p-4 space-y-2">
-          <label className="flex items-center justify-between text-sm text-[var(--text-primary)]">
+        <h2 className="mb-2 text-sm font-semibold text-[#E2E8F0]">Fonts</h2>
+        <div className="bg-[#121212] p-4 space-y-2" style={{ border: '1px solid #262626', borderRadius: '0px' }}>
+          <label className="flex items-center justify-between text-sm text-[#E2E8F0]">
             <span>Monospace (code &amp; responses)</span>
             <select
               value={codeFontFamily}
               onChange={(e) => setCodeFontFamily(e.target.value as CodeFontFamily)}
-              className="rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-2 py-1 text-sm outline-none focus:border-[var(--accent)]"
+              className="bg-[#121212] px-2 py-1 text-sm outline-none"
+              style={{ border: '1px solid #262626', borderRadius: '0px', color: '#E2E8F0' }}
             >
               <option value="system">System default</option>
               <option value="jetbrains">JetBrains Mono</option>
@@ -61,12 +60,13 @@ export function Settings() {
               <option value="menlo">Menlo</option>
             </select>
           </label>
-          <label className="flex items-center justify-between text-sm text-[var(--text-primary)]">
+          <label className="flex items-center justify-between text-sm text-[#E2E8F0]">
             <span>Font size</span>
             <select
               value={codeFontSize}
               onChange={(e) => setCodeFontSize(e.target.value as CodeFontSize)}
-              className="rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-2 py-1 text-sm outline-none focus:border-[var(--accent)]"
+              className="bg-[#121212] px-2 py-1 text-sm outline-none"
+              style={{ border: '1px solid #262626', borderRadius: '0px', color: '#E2E8F0' }}
             >
               <option value="12px">12px</option>
               <option value="13px">13px</option>
@@ -77,14 +77,23 @@ export function Settings() {
         </div>
       </section>
 
+      <section className="mb-6 max-w-md">
+        <div className="bg-[#121212] p-4" style={{ border:'1px solid #262626', borderLeft:'2px solid #10B981', borderRadius:'0px' }}>
+          <p className="text-sm font-semibold text-[#E2E8F0]">Aucun compte requis, jamais. <span className="text-[#10B981]">0 forced cloud</span></p>
+          <p className="mt-1 text-xs leading-relaxed text-[#8F909E]">APIro s’ouvre directement sur ton dernier workspace local. Pas de login Postman, pas de “Create workspace” obligatoire. Principe non-négociable — offline-first, 100% local, diffable Git.</p>
+          <p className="mt-2 text-xs font-medium text-[#8F909E]">0 dépendance tierce exécutée dans les tests — moteur Rust <span className="text-[#8B5CF6]">rhai</span> prévu (Phase 4A), zéro <code className="bg-[#000000] px-1" style={{border:'1px solid #262626'}}>npm install</code> pour tester.</p>
+        </div>
+      </section>
+
       <section className="max-w-md">
-        <h2 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">About</h2>
-        <div className="rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">
-          <p className="text-[var(--text-primary)] font-medium">APIForge</p>
-          <p>Version 0.1.0</p>
+        <h2 className="mb-2 text-sm font-semibold text-[#E2E8F0]">About</h2>
+        <div className="bg-[#121212] p-4 text-sm text-[#8F909E]" style={{ border: '1px solid #262626', borderRadius: '0px' }}>
+          <p className="text-[#E2E8F0] font-medium">APIro</p>
+          <p className="text-xs text-[#8F909E]">API Management, Reimagined — formerly APIForge</p>
+          <p className="mt-1">Version 0.1.0</p>
           <p>Local-first, offline-capable API client and backend explorer.</p>
           <p className="mt-2">
-            Built with Tauri, React, TypeScript, Vite, Tailwind and Zustand.
+            Built with Tauri v2, React 19, TypeScript (strict), Tailwind CSS v4.
           </p>
         </div>
       </section>

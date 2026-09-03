@@ -3,16 +3,18 @@ import { Command } from 'cmdk';
 import {
   Search,
   Plus,
-  SunMoon,
   Globe,
   ScanLine,
   Server,
   Settings as SettingsIcon,
   FileDown,
   Network,
+  LayoutDashboard,
+  Code2,
+  Folder,
 } from 'lucide-react';
 
-import { Clock, FlaskConical } from 'lucide-react';
+import { Clock, FlaskConical, Shield } from 'lucide-react';
 import { useUiStore } from '../stores/uiStore';
 import { useRequestStore } from '../stores/requestStore';
 import { useCollectionStore } from '../stores/collectionStore';
@@ -20,7 +22,7 @@ import { ExportDialog } from './pdf/ExportDialog';
 import { Button } from './ui/Button';
 
 export function CommandPalette() {
-  const { commandPaletteOpen, setCommandPaletteOpen, toggleTheme, setActivePage } = useUiStore();
+  const { commandPaletteOpen, setCommandPaletteOpen, setActivePage } = useUiStore();
   const collections = useCollectionStore((s) => s.collections);
   const [openExport, setOpenExport] = useState(false);
   const [exportCollectionId, setExportCollectionId] = useState<string | null>(null);
@@ -58,25 +60,26 @@ export function CommandPalette() {
       );
     }
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/60" onClick={close} />
-        <div className="relative z-10 w-full max-w-md rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-primary)]">
-          <p className="mb-3 font-medium">Export Documentation</p>
-          <p className="mb-3 text-[var(--text-secondary)]">
-            Choose a collection to export, or open the Collections page for more options.
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.8)' }}>
+        <div className="absolute inset-0" onClick={close} style={{ background: 'rgba(0,0,0,0.8)' }} />
+        <div className="relative z-10 w-full max-w-md bg-[#121212] p-6 text-sm text-[#E2E8F0]" style={{ border: '1px solid #262626', borderRadius: '0px' }}>
+          <p className="mb-3 font-semibold text-[#E2E8F0]" style={{ fontSize: '18px', fontWeight: 600 }}>Export Documentation</p>
+          <p className="mb-3 text-[#8F909E]" style={{ fontSize: '13px' }}>
+            Choose a collection to export.
           </p>
           <div className="mb-3 max-h-48 space-y-1 overflow-auto">
             {collections.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setExportCollectionId(c.id)}
-                className="block w-full rounded px-2 py-1.5 text-left text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                className="block w-full px-3 py-2 text-left text-[#E2E8F0] hover:bg-[#1A1A1A]"
+                style={{ borderRadius: '0px', borderLeft: '2px solid transparent', fontSize: '13px' }}
               >
                 {c.name}
               </button>
             ))}
             {collections.length === 0 && (
-              <p className="text-[var(--text-secondary)]">No collections yet.</p>
+              <p className="text-[#8F909E]">No collections yet.</p>
             )}
           </div>
           <div className="flex justify-end gap-2">
@@ -93,31 +96,35 @@ export function CommandPalette() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={close} />
+    <div className="fixed inset-0 z-50 flex justify-center" style={{ background: 'rgba(0,0,0,0.8)', paddingTop: '15vh' }}>
+      <div className="absolute inset-0" onClick={close} style={{ background: 'rgba(0,0,0,0.8)' }} />
       <Command.Dialog
         open
         onOpenChange={(o) => !o && close()}
         label="Command Palette"
-        className="relative z-10 w-full max-w-xl overflow-hidden rounded border border-[var(--border)] bg-[var(--bg-secondary)]"
+        className="relative z-10 w-full max-w-[640px] overflow-hidden bg-[#121212]"
+        style={{ border: '1px solid #262626', borderRadius: '0px', height: 'fit-content', maxHeight: '60vh' }}
       >
-        <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
-          <Search size={16} className="text-[var(--text-secondary)]" />
+        <div className="flex items-center gap-3 px-4" style={{ borderBottom: '1px solid #262626', padding: '16px' }}>
+          <Search size={16} className="text-[#8F909E] shrink-0" />
           <Command.Input
             autoFocus
             placeholder="Type a command..."
-            className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
+            className="w-full bg-transparent text-[#E2E8F0] outline-none placeholder:text-[#8F909E]"
+            style={{ fontSize: '15px', lineHeight: '22px' }}
           />
         </div>
         <Command.List className="max-h-72 overflow-auto p-2">
-          <Command.Empty className="px-2 py-3 text-center text-xs text-[var(--text-secondary)]">
+          <Command.Empty className="px-2 py-3 text-center text-xs text-[#8F909E]">
             No commands found.
           </Command.Empty>
 
-          <Command.Group heading="Actions" className="px-1 text-xs text-[var(--text-secondary)]">
+          <Command.Group heading="Actions" className="px-1 text-xs">
+            <div className="px-2 py-1 text-xs font-medium uppercase tracking-wider text-[#8F909E]">Actions</div>
             <PaletteItem
               icon={<Plus size={14} />}
               label="New Request Tab"
+              shortcut="Ctrl+N"
               onSelect={() => run(() => useRequestStore.getState().newTab())}
             />
             <PaletteItem
@@ -125,16 +132,22 @@ export function CommandPalette() {
               label="Export Docs"
               onSelect={() => setOpenExport(true)}
             />
-            <PaletteItem
-              icon={<SunMoon size={14} />}
-              label="Switch Theme"
-              onSelect={() => run(toggleTheme)}
-            />
           </Command.Group>
 
-          <Command.Group heading="Navigation" className="px-1 text-xs text-[var(--text-secondary)]">
+          <Command.Group heading="Navigation" className="px-1 text-xs">
+            <div className="px-2 py-1 text-xs font-medium uppercase tracking-wider text-[#8F909E]">Navigation</div>
             <PaletteItem
-              icon={<Search size={14} />}
+              icon={<LayoutDashboard size={14} />}
+              label="Open Dashboard"
+              onSelect={() => run(() => setActivePage('dashboard'))}
+            />
+            <PaletteItem
+              icon={<Code2 size={14} />}
+              label="Open Workspace"
+              onSelect={() => run(() => setActivePage('workspace'))}
+            />
+            <PaletteItem
+              icon={<Folder size={14} />}
               label="Open Collections"
               onSelect={() => run(() => setActivePage('collections'))}
             />
@@ -169,13 +182,18 @@ export function CommandPalette() {
               onSelect={() => run(() => setActivePage('testing'))}
             />
             <PaletteItem
+              icon={<Shield size={14} />}
+              label="Open Security"
+              onSelect={() => run(() => setActivePage('security'))}
+            />
+            <PaletteItem
               icon={<SettingsIcon size={14} />}
               label="Open Settings"
               onSelect={() => run(() => setActivePage('settings'))}
             />
           </Command.Group>
         </Command.List>
-        <p className="border-t border-[var(--border)] px-3 py-2 text-[11px] text-[var(--text-secondary)]">
+        <p className="px-3 py-2 text-xs text-[#8F909E]" style={{ borderTop: '1px solid #262626', fontSize: '11px' }}>
           ↑↓ to navigate · Enter to run · Esc to close
         </p>
       </Command.Dialog>
@@ -186,19 +204,23 @@ export function CommandPalette() {
 function PaletteItem({
   icon,
   label,
+  shortcut,
   onSelect,
 }: {
   icon: ReactNode;
   label: string;
+  shortcut?: string;
   onSelect: () => void;
 }) {
   return (
     <Command.Item
       onSelect={onSelect}
-      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-[var(--text-primary)] data-[selected=true]:bg-[var(--bg-tertiary)]"
+      className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm text-[#8F909E] data-[selected=true]:bg-[rgba(139,92,246,0.10)] data-[selected=true]:text-[#8B5CF6]"
+      style={{ borderRadius: '0px', borderLeft: '2px solid transparent' }}
     >
-      {icon}
-      {label}
+      <span className="text-[#8F909E] data-[selected=true]:text-[#8B5CF6]">{icon}</span>
+      <span className="flex-1">{label}</span>
+      {shortcut && <span className="font-mono text-xs text-[#8F909E]">{shortcut}</span>}
     </Command.Item>
   );
 }

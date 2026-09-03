@@ -9,13 +9,14 @@ export function Input({ label, className, ...props }: InputProps) {
   return (
     <label className="block">
       {label && (
-        <span className="mb-1 block text-xs text-[var(--text-secondary)]">{label}</span>
+        <span className="mb-1 block text-xs font-medium text-[#8F909E]">{label}</span>
       )}
       <input
         className={cn(
-          'w-full rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]',
+          'w-full border border-[#262626] bg-[#121212] px-3 text-sm text-[#E2E8F0] placeholder:text-[#8F909E] outline-none focus:border-[#8B5CF6]',
           className
         )}
+        style={{ height: '40px', borderRadius: '0px' }}
         {...props}
       />
     </label>

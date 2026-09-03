@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type Theme = 'dark' | 'light' | 'system';
+export type Theme = 'dark';
 
 export type AppPage =
+  | 'dashboard'
   | 'workspace'
   | 'collections'
   | 'flow'
@@ -12,6 +13,7 @@ export type AppPage =
   | 'scanner'
   | 'mocks'
   | 'testing'
+  | 'security'
   | 'settings';
 
 export type CodeFontFamily = 'system' | 'jetbrains' | 'fira' | 'sfmono' | 'menlo';
@@ -51,23 +53,19 @@ interface UiState {
   setCodeFontSize: (s: CodeFontSize) => void;
 }
 
-function applyTheme(theme: Theme) {
+function applyTheme(_theme: Theme) {
   const root = document.documentElement;
-  const resolved =
-    theme === 'system'
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light'
-      : theme;
-  root.classList.toggle('dark', resolved === 'dark');
-  root.classList.toggle('light', resolved === 'light');
+  // APIro is dark-native only — force dark, ignore any persisted light value
+  root.classList.add('dark');
+  root.classList.remove('light');
+  root.style.colorScheme = 'dark';
 }
 
 export const useUiStore = create<UiState>()(
   persist(
     (set, get) => ({
-      theme: 'dark',
-      activePage: 'workspace',
+      theme: 'dark' as Theme,
+      activePage: 'dashboard' as AppPage,
       sidebarOpen: true,
       commandPaletteOpen: false,
       zenMode: false,
@@ -78,10 +76,9 @@ export const useUiStore = create<UiState>()(
         set({ theme });
       },
       toggleTheme: () => {
-        const order: Theme[] = ['dark', 'light', 'system'];
-        const next = order[(order.indexOf(get().theme) + 1) % order.length];
-        applyTheme(next);
-        set({ theme: next });
+        // No-op: APIro is dark-only per design system
+        applyTheme('dark');
+        set({ theme: 'dark' });
       },
       setActivePage: (page) => set({ activePage: page }),
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -108,8 +105,14 @@ export const useUiStore = create<UiState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          applyTheme(state.theme);
+          // Migrate old light/system values to dark
+          applyTheme('dark');
+          state.theme = 'dark';
+          // Migrate old default page 'workspace' -> 'dashboard' if no persisted page
+          if (!state.activePage) state.activePage = 'dashboard';
           applyCodePrefs(state.codeFontFamily, state.codeFontSize);
+        } else {
+          applyTheme('dark');
         }
       },
     }

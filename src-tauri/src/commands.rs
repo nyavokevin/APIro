@@ -7,10 +7,14 @@ use crate::git;
 use crate::http;
 use crate::mock::{MockHit, MockRegistry, MockServerInfo};
 use crate::store::{CookieRow, HistoryItem, Store};
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::State;
+use tokio_util::sync::CancellationToken;
+
+pub type CancellationMap = DashMap<String, CancellationToken>;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,13 +42,36 @@ pub fn default_workspace() -> PathBuf {
 pub async fn requests_execute(
     request: http::RequestInput,
     variables: Vec<EnvVar>,
+    run_id: Option<String>,
     store: State<'_, Store>,
+    cancel_map: State<'_, CancellationMap>,
 ) -> Result<http::ApiResponse, String> {
     let mut vars: HashMap<String, String> = HashMap::new();
     for v in variables {
         vars.insert(v.key, v.value);
     }
-    let response = http::execute(&request, &vars).await;
+    let token = if let Some(id) = run_id.clone() {
+        let t = CancellationToken::new();
+        cancel_map.insert(id, t.clone());
+        Some(t)
+    } else {
+        None
+    };
+    let response = if let Some(t) = token.clone() {
+        // Check cancelled before start
+        if t.is_cancelled() {
+            return Ok(http::error_response_cancelled());
+        }
+        tokio::select! {
+            res = http::execute(&request, &vars, Some(t.clone())) => res,
+            _ = t.cancelled() => http::error_response_cancelled(),
+        }
+    } else {
+        http::execute(&request, &vars, None).await
+    };
+    if let Some(id) = run_id {
+        cancel_map.remove(&id);
+    }
     let _ = store.record_history(
         None,
         &request.method,
@@ -60,6 +87,14 @@ pub async fn requests_execute(
         &request.body_type,
     );
     Ok(response)
+}
+
+#[tauri::command]
+pub fn requests_cancel(run_id: String, cancel_map: State<'_, CancellationMap>) -> Result<(), String> {
+    if let Some((_, token)) = cancel_map.remove(&run_id) {
+        token.cancel();
+    }
+    Ok(())
 }
 
 #[tauri::command]

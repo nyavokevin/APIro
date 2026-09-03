@@ -1,114 +1,160 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ==========================================================================
-   APIForge Design System — Atomic Dark Flat Black
+   APIro Design System — Dark Native, Ultra-Minimal, Border-Driven
    --------------------------------------------------------------------------
    Principles:
-   - Pure black base (#000000). Hierarchy via surface steps, never elevation.
-   - Flat: no gradients, no shadows, no glow. Borders define structure.
-   - One accent (atomic orange) used sparingly for primary actions/focus.
-   - Semantic colors are muted, never decorative.
+   - Pure black base (#000000). Elevation via lightness, NO shadows.
+   - Borders (1px #262626) are primary separators.
+   - ZERO radius on all components except avatars.
+   - ZERO shadows, gradients, glassmorphism, blur.
+   - Violet #8B5CF6 is sole primary accent.
    ========================================================================== */
 
 :root {
-  /* Surfaces — stepped from pure black */
-  --bg-primary: #000000;   /* app background */
-  --bg-secondary: #0a0a0a; /* panels: sidebar, header, modals */
-  --bg-tertiary: #161616;  /* elevated: inputs, hover, active nav */
-  --bg-hover: #1f1f1f;     /* strongest hover state */
+  /* Background Layers */
+  --bg-base: #000000;
+  --bg-sidebar: #0A0A0A;
+  --bg-card: #121212;
+  --bg-input: #121212;
+  --bg-header: #000000;
+  --bg-hover: #1A1A1A;
+  --bg-selected: rgba(139, 92, 246, 0.1);
+  --bg-badge-active: rgba(16, 185, 129, 0.1);
+  --bg-badge-trial: rgba(148, 163, 184, 0.1);
+  --bg-button-primary: #8B5CF6;
+  --bg-button-hover: #7C3AED;
+  --bg-button-secondary: #1A1A1A;
+  --bg-dropdown: #121212;
 
-  /* Borders — the primary hierarchy tool */
+  /* Text */
+  --text-primary: #E2E8F0;
+  --text-secondary: #8F909E;
+  --text-white: #FFFFFF;
+  --text-green: #10B981;
+  --text-slate: #94A3B8;
+  --text-violet: #8B5CF6;
+  --text-muted: #8F909E;
+
+  /* Borders */
+  --border-default: #262626;
+  --border-hover: #404040;
+  --border-selected: #8B5CF6;
+  --border-input-focus: #8B5CF6;
+  --border-divider: #262626;
   --border: #262626;
-  --border-strong: #3d3d3d;
+  --border-strong: #404040;
 
-  /* Text — muted bumped to 4.5:1 on --bg-secondary (was 2.96:1) */
-  --text-primary: #ededed;
-  --text-secondary: #8f8f8f;
-  --text-muted: #767676;
+  /* Accents */
+  --accent-violet: #8B5CF6;
+  --accent-violet-soft: rgba(139, 92, 246, 0.1);
+  --accent-green: #10B981;
+  --accent-green-soft: rgba(16, 185, 129, 0.1);
+  --accent-slate: #94A3B8;
+  --accent-slate-soft: rgba(148, 163, 184, 0.1);
+  --accent-red: #EF4444;
+  --accent-red-soft: rgba(239, 68, 68, 0.1);
+  --accent-yellow: #FBBF24;
 
-  /* Accent — atomic orange (text on accent uses --accent-ink for AA) */
-  --accent: #ff5c00;
-  --accent-hover: #ff7a29;
-  --accent-subtle: rgba(255, 92, 0, 0.12);
-  --accent-ink: #0a0a0a;
+  /* Legacy aliases for backward compat */
+  --bg-primary: #000000;
+  --bg-secondary: #0A0A0A;
+  --bg-tertiary: #121212;
+  --accent: #8B5CF6;
+  --accent-hover: #7C3AED;
+  --accent-subtle: rgba(139, 92, 246, 0.1);
+  --accent-ink: #FFFFFF;
+  --success: #10B981;
+  --warning: #FBBF24;
+  --danger: #EF4444;
+  --info: #8B5CF6;
 
-  /* Semantic */
-  --success: #3fd68f;
-  --warning: #ffb224;
-  --danger: #ff4d4f;
-  --info: #4d9fff;
+  /* Syntax */
+  --syntax-string: #A5D6A7;
+  --syntax-number: #FFCC80;
+  --syntax-boolean: #82AAFF;
+  --syntax-null: #EF4444;
 
-  /* Syntax highlighting (JSON tree, editors) */
-  --syntax-string: #9ece6a;
-  --syntax-number: #ff9e64;
-  --syntax-boolean: #bb9af7;
-  --syntax-null: #5c5c5c;
+  /* HTTP Methods */
+  --method-get: #10B981;
+  --method-post: #8B5CF6;
+  --method-put: #FBBF24;
+  --method-delete: #EF4444;
+  --method-patch: #A78BFA;
 
-  /* HTTP methods */
-  --method-get: #3fd68f;
-  --method-post: #ffb224;
-  --method-put: #4d9fff;
-  --method-patch: #bb9af7;
-  --method-delete: #ff4d4f;
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, Menlo, Consolas, monospace;
+  --code-font-size: 13px;
+
+  /* Spacing (base 4px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Layout */
+  --sidebar-width: 80px;
+  --header-height: 64px;
+  --content-padding: 32px;
+  --card-padding: 20px;
+  --card-gap: 24px;
+  --input-height: 40px;
+  --button-height: 36px;
+
+  /* Radius — APIro is sharp: 0px everywhere except avatars */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-full: 9999px;
 }
 
-.light {
-  --bg-primary: #ffffff;
-  --bg-secondary: #fafafa;
-  --bg-tertiary: #f0f0f0;
-  --bg-hover: #e8e8e8;
-  --border: #e4e4e4;
-  --border-strong: #c9c9c9;
-  --text-primary: #111111;
-  --text-secondary: #5f5f5f;
-  --text-muted: #6e6e6e;
-  --accent: #cc4400;
-  --accent-hover: #b33a00;
-  --accent-subtle: rgba(204, 68, 0, 0.12);
-  --accent-ink: #ffffff;
-  --success: #0f8a4f;
-  --warning: #b97a0a;
-  --danger: #d92d20;
-  --info: #0b6bcb;
-  --syntax-string: #4d7f2a;
-  --syntax-number: #b45309;
-  --syntax-boolean: #7c5cbf;
-  --syntax-null: #9a9a9a;
-  --method-get: #0f8a4f;
-  --method-post: #b97a0a;
-  --method-put: #0b6bcb;
-  --method-patch: #7c5cbf;
-  --method-delete: #d92d20;
-}
-
+/* Force dark only — no light mode */
 html {
-  text-underline-offset: 3px;
+  color-scheme: dark;
   scrollbar-gutter: stable;
+  text-underline-offset: 3px;
+}
+
+html.dark,
+html.light {
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg-primary);
+  font-family: var(--font-sans);
+  background: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
-  caret-color: var(--accent);
+  -moz-osx-font-smoothing: grayscale;
+  caret-color: var(--accent-violet);
+  font-size: 15px;
+  line-height: 22px;
 }
 
 code,
-pre {
-  font-family: var(--font-mono, ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace);
-  font-size: var(--code-font-size, 13px);
+pre,
+.font-mono {
+  font-family: var(--font-mono);
 }
 
 ::selection {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--accent-violet);
+  color: var(--text-white);
 }
 
-/* Flat scrollbars — no rounded thumbs, no track chrome */
+/* Scrollbars — flat, 8px, no radius */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -117,19 +163,74 @@ pre {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: #3A3B42;
+  border-radius: 0px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong);
+  background: #5A5B64;
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3A3B42 transparent;
+}
 
-/* Flat focus: 1px accent outline, no glow */
+/* Focus — violet border, no glow/shadow/ring */
 :focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
+  outline: none;
+  border-color: var(--border-input-focus) !important;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--border-input-focus) !important;
+  box-shadow: none !important;
+}
+
+/* Transitions — 150ms ease default, no bounce/spring/blur */
+* {
+  transition-property: color, background-color, border-color, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* Sharp corners enforcement — inputs, buttons, cards, modals, badges */
+input,
+select,
+textarea,
+button {
+  border-radius: 0px !important;
+}
+
+/* Override Tailwind rounded utilities to enforce sharp design system */
+.rounded,
+.rounded-sm,
+.rounded-md,
+.rounded-lg,
+.rounded-xl,
+.rounded-2xl,
+.rounded-full {
+  border-radius: 0px !important;
+}
+/* Avatar exception must override above — placed after */
+.avatar,
+[data-avatar],
+img.avatar {
+  border-radius: 9999px !important;
+}
+
+/* Remove default shadows */
+* {
+  box-shadow: none !important;
+}
+
+/* Avatar exception — only place with radius */
+.avatar,
+[data-avatar] {
+  border-radius: 9999px !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

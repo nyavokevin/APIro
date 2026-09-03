@@ -333,6 +333,7 @@ export async function tauriInvokeMapped<T>(channel: string, args: unknown[]): Pr
     case 'requests:execute': {
       const req = args[0] as RequestData;
       const vars = (args[1] as EnvironmentVariable[]) ?? [];
+      const runId = (args[2] as string | undefined) ?? undefined;
       const headers = req.headers.map((h) => ({ key: h.key, value: h.value, enabled: h.enabled }));
       const params = req.params.map((p) => ({ key: p.key, value: p.value, enabled: p.enabled }));
       return invokeTauri<T>('requests_execute', {
@@ -347,7 +348,16 @@ export async function tauriInvokeMapped<T>(channel: string, args: unknown[]): Pr
           followRedirects: true,
         },
         variables: vars.map((v) => ({ key: v.key, value: v.value })),
+        run_id: runId ?? null,
       });
+    }
+    case 'requests:cancel': {
+      const runId = args[0] as string;
+      return invokeTauri<T>('requests_cancel', { run_id: runId });
+    }
+    case 'testing:runRhai': {
+      const script = args[0] as string;
+      return invokeTauri<T>('testing_run_rhai', { script });
     }
     case 'requests:history': {
       const limit = (args[0] as number) ?? 100;

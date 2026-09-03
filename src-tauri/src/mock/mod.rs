@@ -81,15 +81,38 @@ pub struct MockRoute {
     /// For non-axum callers that use `delay` field
     #[serde(default)]
     pub delay: Option<u64>,
+    /// Chaos injection: extra jitter 0..chaosLatency ms added to delay (Phase4 F)
+    #[serde(default)]
+    pub chaos_latency: Option<u64>,
+    #[serde(default)]
+    pub chaos_error_rate: Option<u8>,
 }
 
 impl MockRoute {
     pub fn effective_delay(&self) -> u64 {
-        if self.delay_ms > 0 {
+        let base = if self.delay_ms > 0 {
             self.delay_ms
         } else {
             self.delay.unwrap_or(0)
+        };
+        if let Some(jitter) = self.chaos_latency {
+            if jitter > 0 {
+                let r = (uuid::Uuid::new_v4().as_u128() % (jitter as u128 + 1)) as u64;
+                return base + r;
+            }
         }
+        base
+    }
+    pub fn chaos_error_status(&self) -> Option<u16> {
+        if let Some(rate) = self.chaos_error_rate {
+            if rate > 0 {
+                let r = (uuid::Uuid::new_v4().as_u128() % 100) as u8;
+                if r < rate {
+                    return Some(500);
+                }
+            }
+        }
+        None
     }
 }
 
@@ -745,6 +768,8 @@ pub fn mock_mcp_call(tool: String, arguments: serde_json::Value, registry: tauri
                 variants: vec![],
                 state: None,
                 delay: None,
+                chaos_latency: None,
+                chaos_error_rate: None,
             };
             registry.create_route(server_id, route.clone())?;
             Ok(mcp::tool_result_text(format!("created route {}", route.id)))
@@ -909,8 +934,13 @@ async fn handler(AxumState(state): AxumState<AppState>, req: Request) -> Respons
         }
     }
 
-    // Mock mode: serve defined mocks
-    if let Some(route) = matched {
+    // Mock mode: serve defined mocks (with chaos injection)
+    if let Some(route) = matched.clone() {
+        if let Some(err_status) = route.chaos_error_status() {
+            let latency = start.elapsed().as_millis() as u64;
+            log_hit(&state.hits, &method, &path, err_status, latency, Some(route.id.clone()), &state.mode);
+            return build_response(err_status, r#"{"error":"chaos injected 500"}"#.into(), &HashMap::new(), route.effective_delay(), &headers).await;
+        }
         // Handle state writes for mock mode as well
         if let Some(ref cfg) = route.state {
             handle_stateful_writes(&state.state, cfg, &method, &path, &route.path, &query, &body_str);
@@ -1157,6 +1187,8 @@ async fn proxy_request(
                     variants: Vec::new(),
                     state: None,
                     delay: None,
+                chaos_latency: None,
+                chaos_error_rate: None,
                 };
                 // Persist to dir
                 if let Ok(mut info) = app_state.server_info.try_lock() {
@@ -1258,6 +1290,8 @@ mod tests {
                 variants: vec![],
                 state: None,
                 delay: None,
+                chaos_latency: None,
+                chaos_error_rate: None,
             }],
             mode: MockMode::Mock,
             target_url: None,
@@ -1319,6 +1353,10 @@ mod tests {
                 key_from: "auto".into(),
             }),
             delay: None,
+
+            chaos_latency: None,
+
+            chaos_error_rate: None,
         };
         let yaml = serde_yaml::to_string(&route).unwrap();
         assert!(yaml.contains("method: GET"));
@@ -1358,6 +1396,8 @@ mod tests {
                         key_from: "auto".into(),
                     }),
                     delay: None,
+                chaos_latency: None,
+                chaos_error_rate: None,
                 },
                 MockRoute {
                     id: "read".into(),
@@ -1374,6 +1414,8 @@ mod tests {
                         key_from: "auto".into(),
                     }),
                     delay: None,
+                chaos_latency: None,
+                chaos_error_rate: None,
                 },
             ],
             false,
@@ -1420,6 +1462,8 @@ mod tests {
                 variants: vec![],
                 state: None,
                 delay: None,
+                chaos_latency: None,
+                chaos_error_rate: None,
             }],
             true,
         );
@@ -1472,6 +1516,8 @@ mod tests {
                     variants: vec![],
                     state: None,
                     delay: None,
+                chaos_latency: None,
+                chaos_error_rate: None,
                 },
             )
             .expect("route created");

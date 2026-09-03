@@ -25,7 +25,7 @@ export function Tabs({ value, onValueChange, children, className }: TabsProps) {
 
 export function TabsList({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('flex border-b border-border', className)}>{children}</div>
+    <div className={cn('flex', className)} style={{ borderBottom: '1px solid #262626' }}>{children}</div>
   );
 }
 
@@ -37,11 +37,17 @@ export function TabsTrigger({ value, children }: { value: string; children: Reac
     <button
       onClick={() => ctx.setValue(value)}
       className={cn(
-        'relative -mb-px border-b-2 px-3 py-2 text-xs font-medium transition-colors',
-        active
-          ? 'border-accent text-content'
-          : 'border-transparent text-muted hover:text-content'
+        'relative -mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-150'
       )}
+      style={{
+        borderBottom: active ? '2px solid #8B5CF6' : '2px solid transparent',
+        color: active ? '#E2E8F0' : '#8F909E',
+        borderRadius: '0px',
+        paddingLeft: '16px',
+        paddingRight: '16px',
+      }}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#E2E8F0'; }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = '#8F909E'; }}
     >
       {children}
     </button>

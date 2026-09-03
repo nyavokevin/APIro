@@ -36,7 +36,10 @@ reqwest = { version = "0.12", default-features = false, features = [
   "cookies",
 ] }
 futures-util = "0.3"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "sync"] }
+tokio-util = { version = "0.7", features = ["full"] }
+dashmap = "6"
+rhai = { version = "1.19", features = ["sync"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 tiny_http = "0.12"
 dirs = "5"
