@@ -129,7 +129,7 @@ async function executeRequest(
   const blank = (): ResponseData => ({
     id: genId(),
     statusCode: 0,
-    statusText: '',
+    statusText: 'Network Error',
     headers: {},
     body: '',
     contentType: '',
@@ -138,6 +138,26 @@ async function executeRequest(
     timeline: { dns: 0, tcp: 0, tls: 0, ttfb: 0, download: 0, total: 0 },
     cookies: [],
   });
+
+  // Validate URL before fetch — catches "http:/" etc.
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) {
+    const elapsed = Math.round(performance.now() - start);
+    const err = { ...blank(), statusText: 'Invalid URL', responseTime: elapsed, timeline: { dns: 0, tcp: 0, tls: 0, ttfb: elapsed, download: 0, total: elapsed }, error: 'URL is empty. Enter a full URL like https://api.example.com/endpoint', body: 'URL is empty' };
+    try { saveHistory(resolved, err); } catch {}
+    return err;
+  }
+  try {
+    // Will throw for malformed URLs like "http:/"
+    new URL(trimmedUrl);
+  } catch {
+    const elapsed = Math.round(performance.now() - start);
+    const msg = `Invalid URL: "${trimmedUrl}". Expected format like https://api.example.com/path — got "${trimmedUrl.slice(0, 80)}"`;
+    const err = { ...blank(), statusText: 'Invalid URL', responseTime: elapsed, timeline: { dns: 0, tcp: 0, tls: 0, ttfb: elapsed, download: 0, total: elapsed }, error: `${msg}. Check the scheme (https://) and host.`, body: msg };
+    try { saveHistory(resolved, err); } catch {}
+    return err;
+  }
+
   try {
     const res = await fetch(url, init);
     const text = await res.text();
@@ -161,16 +181,26 @@ async function executeRequest(
     saveHistory(resolved, response);
     return response;
   } catch (e) {
+    const elapsed = Math.round(performance.now() - start);
     const raw = e instanceof Error ? e.message : String(e);
-    // Browsers raise a generic "Failed to fetch" for CORS / network blocks.
+    const isInvalidUrl = /Failed to parse URL|Invalid URL/i.test(raw);
     const isNetwork = /Failed to fetch|NetworkError|Network request failed/i.test(raw);
-    const hint = isNetwork
-      ? 'This is almost always a CORS or network block enforced by the browser. ' +
-        'Third-party APIs (e.g. coinmarketcap.com) must send `Access-Control-Allow-Origin` ' +
-        'to be callable from a browser. Run APIForge in Electron mode (`npm run dev`) so the ' +
-        'request is sent from Node with no CORS restriction.'
-      : 'Check the URL, TLS certificate, and that the dev server/network can reach the host.';
-    return { ...blank(), error: `${raw}. ${hint}` };
+    let hint: string;
+    let statusText = 'Network Error';
+    if (isInvalidUrl) {
+      statusText = 'Invalid URL';
+      hint = `The URL "${trimmedUrl.slice(0, 80)}" is malformed. Use https://host/path format — e.g. https://api.example.com/users`;
+    } else if (isNetwork) {
+      hint =
+        'This is almost always a CORS or network block enforced by the browser. ' +
+        'Third-party APIs (e...g coinmarketcap.com) must send `Access-Control-Allow-Origin` ' +
+        'to be callable from a browser. Run APIForge via `npm run tauri:dev` so the request is sent from Rust with no CORS restriction.';
+    } else {
+      hint = 'Check the URL, TLS certificate, and that the host is reachable.';
+    }
+    const errRes = { ...blank(), statusText, responseTime: elapsed, timeline: { dns: 0, tcp: 0, tls: 0, ttfb: elapsed, download: 0, total: elapsed }, error: `${raw}. ${hint}`, body: raw };
+    try { saveHistory(resolved, errRes); } catch {}
+    return errRes;
   }
 }
 
@@ -223,20 +253,70 @@ function buildScanResult(baseUrl: string, spec: any): ScanResult {
   return { url: baseUrl, detectedSpec: spec.swagger ? 'swagger' : 'openapi', endpoints, raw: spec };
 }
 
+function hostUrl(baseUrl: string): string {
+  const trimmed = baseUrl.trim();
+  try {
+    const u = new URL(trimmed);
+    let pathname = u.pathname.replace(/\/$/, '');
+    if (pathname.toLowerCase().endsWith('/graphql')) {
+      pathname = pathname.slice(0, -'/graphql'.length);
+    }
+    const origin = u.origin;
+    if (!pathname || pathname === '/') return origin;
+    return origin + pathname.replace(/\/$/, '');
+  } catch {
+    let url = trimmed.replace(/\/$/, '');
+    if (url.toLowerCase().endsWith('/graphql')) url = url.slice(0, -'/graphql'.length);
+    return url.replace(/\/$/, '');
+  }
+}
+
+const GRAPHQL_INTROSPECTION = `query IntrospectionQuery { __schema { queryType { name fields { name } } mutationType { name fields { name } } } }`;
+
+async function tryGraphQLFetch(baseUrl: string): Promise<ScannedEndpoint[]> {
+  const url = hostUrl(baseUrl) + '/graphql';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: GRAPHQL_INTROSPECTION }),
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const schema = json?.data?.__schema;
+    if (!schema) return [];
+    const endpoints: ScannedEndpoint[] = [];
+    for (const t of [schema.queryType, schema.mutationType]) {
+      if (!t || !Array.isArray(t.fields)) continue;
+      for (const f of t.fields) {
+        endpoints.push({ method: 'POST', path: '/graphql', summary: String(f.name), tags: ['graphql'], parameters: [] });
+      }
+    }
+    return endpoints;
+  } catch {
+    return [];
+  }
+}
+
 async function scan(baseUrl: string): Promise<ScanResult> {
+  const base = hostUrl(baseUrl);
   const candidates = ['/swagger.json', '/openapi.json', '/api-docs', '/swagger/v1/swagger.json'];
   for (const c of candidates) {
     try {
-      const res = await fetch(baseUrl.replace(/\/$/, '') + c);
+      const res = await fetch(base + c);
       if (res.ok) {
         const json = await res.json();
-        if (json && (json.swagger || json.openapi || json.paths)) return buildScanResult(baseUrl, json);
+        if (json && (json.swagger || json.openapi || json.paths)) return buildScanResult(base, json);
       }
     } catch {
       /* try next */
     }
   }
-  return { url: baseUrl, detectedSpec: 'none', endpoints: [] };
+  const graphqlEndpoints = await tryGraphQLFetch(baseUrl);
+  if (graphqlEndpoints.length > 0) {
+    return { url: base, detectedSpec: 'graphql', endpoints: graphqlEndpoints };
+  }
+  return { url: base, detectedSpec: 'none', endpoints: [] };
 }
 
 function generateFromScan(input: ScanResult): Collection {
@@ -258,11 +338,18 @@ function generateFromScan(input: ScanResult): Collection {
       folders.set(tag, folder);
       root.children!.push(folder);
     }
+    const joinUrl = (base: string, path: string) => {
+      if (path.startsWith('http')) return path;
+      const b = base.replace(/\/$/, '');
+      const p = path.startsWith('/') ? path : '/' + path;
+      if (b.toLowerCase().endsWith('/graphql') && p.toLowerCase() === '/graphql') return b;
+      return b + p;
+    };
     const req: RequestData = {
       id: genId(),
       name: ep.summary || `${ep.method} ${ep.path}`,
       method: ep.method,
-      url: ep.path.startsWith('http') ? ep.path : `${input.url}${ep.path}`,
+      url: joinUrl(input.url, ep.path),
       headers: [],
       params: ep.parameters ?? [],
       bodyType: 'none',

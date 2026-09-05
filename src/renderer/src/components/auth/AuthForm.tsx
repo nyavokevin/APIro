@@ -24,21 +24,48 @@ function str(v: string | undefined): string {
   return v ?? '';
 }
 
+const selectCls =
+  'w-full border bg-[#0E0E10] px-3 text-sm text-[#E6E8F0] outline-none transition-all duration-200 hover:border-[#2E2E36] focus:border-[#8B5CF6] focus:bg-[#121215]';
+const selectStyle: React.CSSProperties = {
+  height: '40px',
+  borderColor: '#232329',
+  borderRadius: '0px',
+};
+
 export function AuthForm({ request, onChange }: AuthFormProps) {
   const auth = request.auth ?? { type: 'none' };
   const setAuth = (patch: Partial<AuthConfig>) => onChange({ auth: { ...auth, ...patch } });
 
   return (
-    <div className="space-y-3 p-3">
+    <div className="flex flex-col gap-4 p-4">
+      {/* Header pill */}
+      <div className="flex items-center gap-2">
+        <span
+          className="inline-flex items-center gap-1.5 border bg-[#121215] px-2.5 py-1 text-[11px] font-medium tracking-[-0.01em] text-[#9FA3B5]"
+          style={{ borderColor: '#232329' }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-[#8B5CF6]" aria-hidden />
+          Authentication
+        </span>
+        <span className="text-xs" style={{ color: '#5A5E6E' }}>
+          {auth.type === 'none' ? 'No auth' : AUTH_TYPES.find((a) => a.value === auth.type)?.label}
+        </span>
+      </div>
+
       <label className="block">
-        <span className="mb-1 block text-xs text-[var(--text-secondary)]">Type</span>
+        <span className="mb-1.5 block text-xs font-medium tracking-[0.02em] text-[#9FA3B5]" style={{ letterSpacing: '0.02em' }}>
+          Type
+        </span>
         <select
           value={auth.type}
           onChange={(e) => setAuth({ type: e.target.value as AuthType })}
-          className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-2 py-1.5 text-sm outline-none"
+          className={selectCls}
+          style={selectStyle}
+          onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.10)')}
+          onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
         >
           {AUTH_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
+            <option key={t.value} value={t.value} style={{ background: '#121215' }}>
               {t.label}
             </option>
           ))}
@@ -46,7 +73,12 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
       </label>
 
       {auth.type === 'none' && (
-        <p className="text-sm text-[var(--text-secondary)]">This request does not use authentication.</p>
+        <div className="border border-dashed bg-[#0E0E10]/50 px-3 py-4 text-center" style={{ borderColor: '#232329' }}>
+          <p className="text-sm tracking-[-0.01em] text-[#7A7F93]">This request does not use authentication.</p>
+          <p className="mt-1 text-xs" style={{ color: '#5A5E6E' }}>
+            Choose a type above to add credentials. They’re applied at send time and never logged.
+          </p>
+        </div>
       )}
 
       {auth.type === 'bearer' && (
@@ -55,11 +87,12 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
           value={str(auth.bearer?.token)}
           onChange={(e) => setAuth({ bearer: { token: e.target.value } })}
           placeholder="eyJhbGciOi…"
+          className="font-mono tabular-nums"
         />
       )}
 
       {auth.type === 'api-key' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Key"
             value={str(auth.apiKey?.key)}
@@ -72,6 +105,7 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
                 },
               })
             }
+            placeholder="X-API-Key"
           />
           <Input
             label="Value"
@@ -85,9 +119,13 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
                 },
               })
             }
+            placeholder="••••••••"
+            className="font-mono tabular-nums"
           />
           <label className="col-span-2 block">
-            <span className="mb-1 block text-xs text-[var(--text-secondary)]">Add to</span>
+            <span className="mb-1.5 block text-xs font-medium tracking-[0.02em] text-[#9FA3B5]" style={{ letterSpacing: '0.02em' }}>
+              Add to
+            </span>
             <select
               value={auth.apiKey?.in ?? 'header'}
               onChange={(e) =>
@@ -99,17 +137,20 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
                   },
                 })
               }
-              className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-2 py-1.5 text-sm outline-none"
+              className={selectCls}
+              style={selectStyle}
+              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.10)')}
+              onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
             >
-              <option value="header">Header</option>
-              <option value="query">Query Params</option>
+              <option value="header" style={{ background: '#121215' }}>Header</option>
+              <option value="query" style={{ background: '#121215' }}>Query Params</option>
             </select>
           </label>
         </div>
       )}
 
       {auth.type === 'basic' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Username"
             value={str(auth.basic?.username)}
@@ -125,7 +166,7 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
       )}
 
       {auth.type === 'digest' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Username"
             value={str(auth.digest?.username)}
@@ -146,22 +187,25 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
             label="Nonce"
             value={str(auth.digest?.nonce)}
             onChange={(e) => setAuth({ digest: { ...auth.digest, username: str(auth.digest?.username), password: str(auth.digest?.password), nonce: e.target.value } })}
+            className="font-mono tabular-nums"
           />
         </div>
       )}
 
       {auth.type === 'oauth2' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Token URL"
             value={str(auth.oauth2?.tokenUrl as string)}
             onChange={(e) => setAuth({ oauth2: { ...auth.oauth2, tokenUrl: e.target.value } })}
             placeholder="https://auth.example.com/token"
+            className="font-mono"
           />
           <Input
             label="Client ID"
             value={str(auth.oauth2?.clientId as string)}
             onChange={(e) => setAuth({ oauth2: { ...auth.oauth2, clientId: e.target.value } })}
+            className="font-mono tabular-nums"
           />
           <Input
             label="Client Secret"
@@ -185,12 +229,13 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
             label="Access Token"
             value={str(auth.oauth2?.accessToken as string)}
             onChange={(e) => setAuth({ oauth2: { ...auth.oauth2, accessToken: e.target.value } })}
+            className="font-mono tabular-nums"
           />
         </div>
       )}
 
       {auth.type === 'oauth1' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Consumer Key"
             value={str(auth.oauth1?.consumerKey as string)}
@@ -206,6 +251,7 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
             label="Token"
             value={str(auth.oauth1?.token as string)}
             onChange={(e) => setAuth({ oauth1: { ...auth.oauth1, token: e.target.value } })}
+            className="font-mono tabular-nums"
           />
           <Input
             label="Token Secret"
@@ -228,7 +274,7 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
       )}
 
       {auth.type === 'hawk' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Hawk Key ID"
             value={str(auth.hawk?.id as string)}
@@ -255,21 +301,24 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
             label="Nonce"
             value={str(auth.hawk?.nonce as string)}
             onChange={(e) => setAuth({ hawk: { ...auth.hawk, nonce: e.target.value } })}
+            className="font-mono tabular-nums"
           />
           <Input
             label="Timestamp (ms)"
             value={str(auth.hawk?.timestamp as string)}
             onChange={(e) => setAuth({ hawk: { ...auth.hawk, timestamp: e.target.value } })}
+            className="font-mono tabular-nums"
           />
         </div>
       )}
 
       {auth.type === 'aws-sigv4' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Access Key"
             value={str(auth.awsSigV4?.accessKey as string)}
             onChange={(e) => setAuth({ awsSigV4: { ...auth.awsSigV4, accessKey: e.target.value } })}
+            className="font-mono tabular-nums"
           />
           <Input
             label="Secret Key"
@@ -293,12 +342,13 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
             label="Session Token"
             value={str(auth.awsSigV4?.sessionToken as string)}
             onChange={(e) => setAuth({ awsSigV4: { ...auth.awsSigV4, sessionToken: e.target.value } })}
+            className="font-mono tabular-nums"
           />
         </div>
       )}
 
       {auth.type === 'ntlm' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Username"
             value={str(auth.ntlm?.username as string)}
@@ -324,18 +374,20 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
       )}
 
       {auth.type === 'kerberos' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Principal"
             value={str(auth.kerberos?.principal as string)}
             onChange={(e) => setAuth({ kerberos: { ...auth.kerberos, principal: e.target.value } })}
             placeholder="user@REALM"
+            className="font-mono"
           />
           <Input
             label="Service"
             value={str(auth.kerberos?.service as string)}
             onChange={(e) => setAuth({ kerberos: { ...auth.kerberos, service: e.target.value } })}
             placeholder="HTTP/host"
+            className="font-mono"
           />
           <Input
             label="Realm"
@@ -346,6 +398,7 @@ export function AuthForm({ request, onChange }: AuthFormProps) {
             label="Keytab Path"
             value={str(auth.kerberos?.keytab as string)}
             onChange={(e) => setAuth({ kerberos: { ...auth.kerberos, keytab: e.target.value } })}
+            className="font-mono"
           />
         </div>
       )}

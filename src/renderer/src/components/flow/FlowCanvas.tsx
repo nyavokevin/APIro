@@ -9,6 +9,7 @@ import { useRequestStore } from '../../stores/requestStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { Button } from '../ui/Button';
+import { Sparkles, FolderTree, Plus, Network } from 'lucide-react';
 
 interface Props {
   graph: FlowGraph;
@@ -31,7 +32,6 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
   const canvasRef = useRef<HTMLDivElement>(null);
   const playTimerRef = useRef<number | null>(null);
 
-  // derived: highlighted nodes during play
   const playSequence = useMemo(
     () => graph.edges.filter((e) => e.edgeType === 'sequence').sort((a, b) => (a.label ?? '').localeCompare(b.label ?? '')),
     [graph.edges]
@@ -64,10 +64,8 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
 
   useEffect(() => () => { if (playTimerRef.current) window.clearInterval(playTimerRef.current); }, []);
 
-  // Fit view on graph change
   useEffect(() => {
     if (graph.nodes.length === 0) { setScale(1); setOffset({ x: 0, y: 0 }); return; }
-    // compute bounds
     const pad = 40;
     const minX = Math.min(...graph.nodes.map((n) => n.x));
     const maxX = Math.max(...graph.nodes.map((n) => n.x + n.width));
@@ -143,7 +141,6 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
     const col = useWorkspaceStore.getState().getCollectionById(node.collectionId)
       ?? useWorkspaceStore.getState().getCollectionById(node.requestId)
       ?? null;
-    // Try direct lookup by requestId via collections traversal
     let reqData = null as any;
     const findReq = (nodes: any[]): any => {
       for (const c of nodes) {
@@ -154,7 +151,6 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
       return null;
     };
     reqData = findReq(useWorkspaceStore.getState().collections);
-    // fallback: if col is request
     if (!reqData && col && (col as any).data) reqData = (col as any).data;
     if (reqData) {
       useRequestStore.getState().openRequest(reqData);
@@ -164,7 +160,6 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
 
   const selectedNode = selectedNodeId ? graph.nodes.find((n) => n.id === selectedNodeId) ?? null : null;
 
-  // Impact graph: downstream of selected node via dataFlow/authFlow (BFS) — must be before early return (hooks rule)
   const { impactedNodeIds, impactedEdgeIds } = useMemo(() => {
     if (!impactMode || !selectedNodeId) return { impactedNodeIds: new Set<string>(), impactedEdgeIds: new Set<string>() };
     const depEdges = (graph.edges ?? []).filter(e => e.edgeType === 'dataFlow' || e.edgeType === 'authFlow');
@@ -192,16 +187,38 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
 
   if (graph.nodes.length === 0) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <div className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-3">
-          <p className="text-sm font-medium text-[var(--text-primary)]">No requests to visualize</p>
-          <p className="mt-1 max-w-sm text-xs leading-relaxed text-[var(--text-secondary)]">
-            Create a collection with at least two requests. Use <code className="rounded bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[10px]">{'{{var}}'}</code> in URLs/headers and <code className="rounded bg-[var(--bg-tertiary)] px-1 py-0.5 font-mono text-[10px]">pm.environment.set</code> in scripts to see data-flow edges.
-          </p>
-          <div className="mt-3 flex justify-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => useUiStore.getState().setActivePage('collections')}>Go to Collections</Button>
-            <Button variant="primary" size="sm" onClick={() => useUiStore.getState().setActivePage('workspace')}>New Request</Button>
+      <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center" style={{ background: '#070709' }}>
+        <div className="animate-fadeUp w-full max-w-[520px]">
+          <div
+            className="px-6 py-8"
+            style={{ background: '#0E0E10', border: '1px solid #232329', boxShadow: '0 8px 32px rgba(0,0,0,0.32)' }}
+          >
+            <div className="mx-auto flex h-12 w-12 items-center justify-center" style={{ background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.22)', color: '#8B5CF6' }}>
+              <Network size={20} strokeWidth={1.7} />
+            </div>
+            <h3 className="mt-4 text-[15px] font-semibold tracking-tight" style={{ color: '#E6E8F0', letterSpacing: '-0.02em' }}>No requests to visualize</h3>
+            <p className="mx-auto mt-2 max-w-[42ch] text-[13px] leading-relaxed" style={{ color: '#9FA3B5' }}>
+              Create a collection with at least two requests. Use <code className="px-1.5 py-0.5 font-mono text-[11px]" style={{ background: '#121215', border: '1px solid #232329', color: '#E6E8F0' }}>{'{{var}}'}</code> in URLs/headers and <code className="px-1.5 py-0.5 font-mono text-[11px]" style={{ background: '#121215', border: '1px solid #232329', color: '#E6E8F0' }}>pm.environment.set</code> in scripts to see data-flow edges.
+            </p>
+            {/* skeleton preview */}
+            <div className="mt-6 grid grid-cols-3 gap-2 opacity-60">
+              <div className="h-[56px] skeleton" /><div className="h-[56px] skeleton" /><div className="h-[56px] skeleton" />
+            </div>
+            <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px]" style={{ color: '#5A5E6E' }}>
+              <Sparkles size={11} /> preview after adding requests
+            </div>
+            <div className="mt-6 flex justify-center gap-2">
+              <Button variant="secondary" size="sm" onClick={() => useUiStore.getState().setActivePage('collections')} className="active:scale-[0.97]">
+                <FolderTree size={14} /> Go to Collections
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => useUiStore.getState().setActivePage('workspace')} className="active:scale-[0.97]">
+                <Plus size={14} /> New Request
+              </Button>
+            </div>
           </div>
+          <p className="mt-3 text-[11px]" style={{ color: '#5A5E6E' }}>
+            Tip — data-flow = blue · auth = amber · sequence = dashed
+          </p>
         </div>
       </div>
     );
@@ -210,26 +227,27 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
   return (
     <div
       ref={canvasRef}
-      className="relative h-full w-full overflow-hidden bg-[var(--bg-primary)]"
-      style={{ cursor: draggingCanvas ? 'grabbing' : 'grab' }}
+      className="relative h-full w-full overflow-hidden"
+      style={{ background: '#070709', cursor: draggingCanvas ? 'grabbing' : 'grab' }}
       onWheel={onWheel}
       onPointerDown={onCanvasPointerDown}
       onPointerMove={onCanvasPointerMove}
       onPointerUp={onCanvasPointerUp}
     >
-      {/* grid background */}
       <div
         aria-hidden
         style={{
           position: 'absolute',
           inset: 0,
           backgroundImage:
-            'linear-gradient(to right, #1a1a1a 1px, transparent 1px), linear-gradient(to bottom, #1a1a1a 1px, transparent 1px)',
+            'linear-gradient(to right, #1E1E24 1px, transparent 1px), linear-gradient(to bottom, #1E1E24 1px, transparent 1px)',
           backgroundSize: `${24 * scale}px ${24 * scale}px`,
           backgroundPosition: `${offset.x}px ${offset.y}px`,
-          opacity: 0.35,
+          opacity: 0.28,
         }}
       />
+      {/* subtle vignette */}
+      <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(800px circle at 50% 50%, transparent 55%, rgba(0,0,0,0.32) 100%)' }} />
 
       <FlowToolbar
         layout={graph.layout}
@@ -261,7 +279,6 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
         graph={graph}
       />
 
-      {/* viewport */}
       <div
         style={{
           position: 'absolute',
@@ -322,34 +339,43 @@ export function FlowCanvas({ graph, onLayoutChange, onNodesChange, onNodeSelect,
 
       <FlowLegend />
 
-      {/* details drawer for selected node */}
       {selectedNode && (
-        <div className="absolute bottom-3 left-3 max-w-[320px] rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-3 shadow-none">
-          <div className="flex items-start justify-between gap-2">
+        <div
+          className="absolute bottom-3 left-3 z-10 max-w-[340px] animate-fadeUp"
+          style={{ background: '#0E0E10', border: '1px solid #232329', boxShadow: '0 8px 28px rgba(0,0,0,0.42)', borderRadius: 0 }}
+        >
+          <div className="flex items-start justify-between gap-3 p-3.5">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="rounded px-1.5 py-0.5 text-[10px] font-bold leading-none" style={{ background: `${selectedNode.color}1A`, color: selectedNode.color, border: `1px solid ${selectedNode.color}33`, fontFamily: 'JetBrains Mono, monospace' }}>
+                <span className="px-1.5 py-0.5 text-[10px] font-bold leading-none" style={{ background: `${selectedNode.color}14`, color: selectedNode.color, border: `1px solid ${selectedNode.color}2e`, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.04em' }}>
                   {selectedNode.method}
                 </span>
-                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{selectedNode.label}</span>
+                <span className="truncate text-[13px] font-semibold tracking-tight" style={{ color: '#E6E8F0', letterSpacing: '-0.01em' }}>{selectedNode.label}</span>
               </div>
-              <div className="mt-1 truncate font-mono text-[11px] text-[var(--text-secondary)]" title={selectedNode.url}>{selectedNode.url || '—'}</div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="mt-1.5 truncate font-mono text-[11px]" style={{ color: '#7A7F93' }} title={selectedNode.url}>{selectedNode.url || '—'}</div>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {graph.edges.filter((e) => e.source === selectedNode.id || e.target === selectedNode.id).map((e) => (
-                  <span key={e.id} className="rounded border px-1.5 py-0.5 text-[10px] font-medium" style={{ borderColor: e.color, color: e.color, background: `${e.color}14` }}>
+                  <span key={e.id} className="px-2 py-0.5 text-[11px] font-medium" style={{ border: `1px solid ${e.color}3a`, color: e.color, background: `${e.color}0f`, borderRadius: 0 }}>
                     {e.edgeType === 'dataFlow' ? '⇢' : e.edgeType === 'authFlow' ? '🔑' : '→'} {e.label ?? e.edgeType}
                   </span>
                 ))}
                 {graph.edges.filter((e) => e.source === selectedNode.id || e.target === selectedNode.id).length === 0 && (
-                  <span className="text-[11px] text-[var(--text-muted)]">No connections</span>
+                  <span className="text-[11px]" style={{ color: '#5A5E6E' }}>No connections — isolated node</span>
                 )}
               </div>
             </div>
-            <button onClick={() => onNodeSelect(null)} className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]" aria-label="Close">✕</button>
+            <button
+              onClick={() => onNodeSelect(null)}
+              className="flex h-6 w-6 items-center justify-center text-xs transition-colors hover:bg-[#121215] active:scale-[0.95]"
+              style={{ color: '#7A7F93', border: '1px solid #232329' }}
+              aria-label="Close"
+            >
+              ✕
+            </button>
           </div>
-          <div className="mt-2.5 flex gap-1.5">
-            <Button variant="primary" size="sm" onClick={() => handleOpenRequest(selectedNode.id)}>Open request</Button>
-            <Button variant="secondary" size="sm" onClick={() => onNodeSelect(null)}>Close</Button>
+          <div className="flex gap-1.5 px-3.5 pb-3.5">
+            <Button variant="primary" size="sm" onClick={() => handleOpenRequest(selectedNode.id)} className="active:scale-[0.97]">Open request</Button>
+            <Button variant="secondary" size="sm" onClick={() => onNodeSelect(null)} className="active:scale-[0.97]">Close</Button>
           </div>
         </div>
       )}

@@ -66,6 +66,12 @@ pub fn run() {
             scanner::scanner_scan_routes,
             scanner::scanner_generate_collection,
             scanner::scanner_quick_scan,
+            scanner::diff::scanner_get_last_scan,
+            scanner::diff::scanner_diff_scans,
+            scanner::openapi_export::scanner_export_openapi,
+            scanner::watch::scanner_watch_start,
+            scanner::watch::scanner_watch_stop,
+            scanner::watch::scanner_watch_is_active,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -20,20 +20,32 @@ export function FlowMinimap({ nodes, offset, scale }: Props) {
   const MH = Math.round(MW / aspect);
   const clampedMH = Math.min(96, Math.max(56, MH));
 
-  // viewport rect in minimap coords
-  // world -> minimap: (world - min) * (MW/w)
-  // viewport in world: viewport is centered at (-offset/scale), size = viewportPx / scale
-  // approximate: just show a dot for center
-
   return (
     <div
-      className="pointer-events-none absolute right-3 top-14 hidden rounded border border-[var(--border)] bg-[var(--bg-secondary)] p-1.5 sm:block"
-      style={{ width: MW + 12, height: clampedMH + 22 }}
+      className="pointer-events-none absolute right-3 top-14 hidden sm:block z-10"
+      style={{
+        width: MW + 14,
+        height: clampedMH + 26,
+        background: '#0E0E10',
+        border: '1px solid #232329',
+        borderRadius: 0,
+        padding: 6,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
+      }}
       aria-hidden
     >
-      <div className="mb-1 text-center text-[9px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Minimap</div>
-      <div className="relative overflow-hidden rounded bg-[var(--bg-primary)]" style={{ width: MW, height: clampedMH }}>
-        {/* nodes */}
+      <div className="mb-1 flex items-center justify-center gap-1.5 text-[9px] font-semibold uppercase tracking-wide" style={{ color: '#5A5E6E', letterSpacing: '0.08em' }}>
+        <span className="h-1 w-1 rounded-full" style={{ background: '#5A5E6E' }} /> Minimap
+      </div>
+      <div className="relative overflow-hidden" style={{ width: MW, height: clampedMH, background: '#070709', border: '1px solid #1E1E24' }}>
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: 'linear-gradient(to right, #1E1E24 1px, transparent 1px), linear-gradient(to bottom, #1E1E24 1px, transparent 1px)',
+            backgroundSize: '8px 8px',
+          }}
+        />
         {nodes.map((n) => {
           const nx = ((n.x - minX) / w) * (MW - 6) + 3;
           const ny = ((n.y - minY) / h) * (clampedMH - 6) + 3;
@@ -49,13 +61,14 @@ export function FlowMinimap({ nodes, offset, scale }: Props) {
                 width: nw,
                 height: nh,
                 background: n.color,
-                borderRadius: 1,
-                opacity: 0.95,
+                borderRadius: 0,
+                opacity: 0.9,
+                boxShadow: `0 0 6px ${n.color}55`,
+                border: `1px solid ${n.color}33`,
               }}
             />
           );
         })}
-        {/* viewport indicator */}
         <div
           style={{
             position: 'absolute',
@@ -63,10 +76,10 @@ export function FlowMinimap({ nodes, offset, scale }: Props) {
             top: clampedMH / 2 - 8,
             width: 20,
             height: 16,
-            border: '1px solid #ff5c00',
-            borderRadius: 2,
-            background: 'rgba(255,92,0,0.12)',
-            // we don't have exact viewport mapping without viewport size; keep centered hint
+            border: '1px solid rgba(139,92,246,0.65)',
+            borderRadius: 0,
+            background: 'rgba(139,92,246,0.12)',
+            boxShadow: '0 0 8px rgba(139,92,246,0.22)',
             transform: `translate(${(offset.x / scale) * 0.02}px, ${(offset.y / scale) * 0.02}px)`,
           }}
         />

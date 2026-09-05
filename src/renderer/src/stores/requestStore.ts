@@ -144,6 +144,8 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         }
       } catch {}
     } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      const isInvalidUrl = /Invalid URL|Failed to parse URL/i.test(raw);
       set((state) => ({
         tabs: state.tabs.map((t) =>
           t.id === id
@@ -153,15 +155,15 @@ export const useRequestStore = create<RequestState>((set, get) => ({
                 response: {
                   id: 'error',
                   statusCode: 0,
-                  statusText: 'Error',
+                  statusText: isInvalidUrl ? 'Invalid URL' : 'Network Error',
                   headers: {},
-                  body: err instanceof Error ? err.message : String(err),
+                  body: raw,
                   contentType: 'text/plain',
                   responseTime: 0,
                   size: 0,
                   timeline: { dns: 0, tcp: 0, tls: 0, ttfb: 0, download: 0, total: 0 },
                   cookies: [],
-                  error: err instanceof Error ? err.message : String(err),
+                  error: raw,
                 },
               }
             : t
@@ -169,7 +171,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       }));
       try {
         const { useNotificationStore } = await import('./notificationStore');
-        useNotificationStore.getState().addToast({ variant:'error', title:'Request error', description: err instanceof Error ? err.message : String(err) });
+        useNotificationStore.getState().addToast({ variant:'error', title: isInvalidUrl ? 'Invalid URL' : 'Request failed', description: raw.slice(0, 220) });
       } catch {}
     }
   },

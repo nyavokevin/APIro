@@ -118,6 +118,12 @@ export const api = {
       invoke<string>('scanner:generateCollection', scanResult, baseUrl, apiVersion, outputPath, collectionName),
     quickScan: (projectPath: string, baseUrl: string, collectionName?: string) =>
       invoke<string>('scanner:quickScan', projectPath, baseUrl, collectionName),
+    getLastScan: (projectPath: string) => invoke<SourceScanResult | null>('scanner:getLastScan', projectPath),
+    diffScans: (previous: SourceScanResult, current: SourceScanResult) => invoke<import('../lib/scanner/scanDiff').ScanDiff>('scanner:diffScans', previous as unknown as never, current as unknown as never),
+    exportOpenApi: (scanResult: SourceScanResult, outputPath?: string) => invoke<string>('scanner:exportOpenApi', scanResult, outputPath ?? null),
+    watchStart: (projectPath: string) => invoke<string>('scanner:watchStart', projectPath),
+    watchStop: (projectPath: string) => invoke<string>('scanner:watchStop', projectPath),
+    watchIsActive: (projectPath: string) => invoke<boolean>('scanner:watchIsActive', projectPath),
   },
   seed: {
     generate: (fieldName: string) => invoke<string>('seed-generator:generate', fieldName),

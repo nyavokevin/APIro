@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Play, Loader2, CheckCircle2, XCircle, Square, Download } from 'lucide-react';
+import { Play, Loader2, CheckCircle2, XCircle, Square, Download, FlaskConical, Timer, Layers, AlertTriangle } from 'lucide-react';
 import type { Collection, RequestData, TestResult } from '@shared/types/request';
 import { api } from '../../services/api';
 import { useCollectionStore } from '../../stores/collectionStore';
@@ -62,7 +62,7 @@ function toHTML(rows: RunRow[], collectionName: string): string {
   const failed = rows.length - passed;
   const pt = rows.reduce((a,r)=>a+r.tests.filter(t=>t.passed).length,0);
   const ft = rows.reduce((a,r)=>a+r.tests.filter(t=>!t.passed).length,0);
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${collectionName} — Test Report</title><style>body{font-family:Inter,system-ui;background:#000;color:#E2E8F0;margin:0;padding:32px}h1{font-size:24px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #262626;padding:8px 12px;text-align:left;font-size:13px}th{background:#121212;color:#8F909E;text-transform:uppercase;font-size:11px}td{color:#E2E8F0}.ok{color:#10B981}.err{color:#EF4444}.meta{color:#8F909E;font-size:12px}</style></head><body><h1>${collectionName}</h1><p class="meta">${rows.length} requests · ${passed} passed · ${failed} failed · ${pt} tests passed · ${ft} failed</p><table><thead><tr><th>Status</th><th>Method</th><th>Name</th><th>Time</th><th>Tests</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="${r.ok?'ok':'err'}">${r.error?`ERR`:r.status}</td><td>${r.method}</td><td>${r.name}</td><td>${r.durationMs||0}ms</td><td>${r.tests.length?`${r.tests.filter(t=>t.passed).length}/${r.tests.length}`:'—'}</td></tr>`).join('')}</tbody></table></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${collectionName} — Test Report</title><style>body{font-family:Inter,system-ui;background:#070709;color:#E6E8F0;margin:0;padding:32px}h1{font-size:24px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #232329;padding:8px 12px;text-align:left;font-size:13px}th{background:#121215;color:#9FA3B5;text-transform:uppercase;font-size:11px}td{color:#E6E8F0}.ok{color:#10B981}.err{color:#EF4444}.meta{color:#7A7F93;font-size:12px}</style></head><body><h1>${collectionName}</h1><p class="meta">${rows.length} requests · ${passed} passed · ${failed} failed · ${pt} tests passed · ${ft} failed</p><table><thead><tr><th>Status</th><th>Method</th><th>Name</th><th>Time</th><th>Tests</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="${r.ok?'ok':'err'}">${r.error?`ERR`:r.status}</td><td>${r.method}</td><td>${r.name}</td><td>${r.durationMs||0}ms</td><td>${r.tests.length?`${r.tests.filter(t=>t.passed).length}/${r.tests.length}`:'—'}</td></tr>`).join('')}</tbody></table></body></html>`;
 }
 
 export function CollectionRunner() {
@@ -77,7 +77,6 @@ export function CollectionRunner() {
   const collection = collections.find((c) => c.id === selectedId);
   const requests = collection ? flattenRequests([collection]) : [];
 
-  // derive rows/progress from activeRun if it matches selected collection, else local
   const activeRows: RunRow[] = (activeRun && activeRun.collectionId===selectedId ? activeRun.rows as RunRow[] : []);
   const progress = activeRun && activeRun.collectionId===selectedId ? activeRun.progress : 0;
   const running = isRunning && activeRun?.collectionId===selectedId && activeRun?.status==='running';
@@ -85,7 +84,6 @@ export function CollectionRunner() {
   const abortRef = useRef<AbortController|null>(null);
 
   useEffect(()=>{
-    // keep abortRef in store for cancel
     if (running && abortRef.current) useTestingStore.getState().setAbortController(abortRef.current);
     else if (!running) useTestingStore.getState().setAbortController(null);
   }, [running]);
@@ -109,7 +107,6 @@ export function CollectionRunner() {
     let cancelled = false;
     controller.signal.addEventListener('abort', ()=>{ cancelled = true; });
 
-    // variables accumulator for chaining (sequential)
     let accumulatedVars = [...useWorkspaceStore.getState().variables()];
     const chainUpdates: Record<string,string> = {};
 
@@ -118,14 +115,12 @@ export function CollectionRunner() {
       const row: RunRow = { id: req.id, name: req.name, method: req.method, url: req.url, status: null, ok: false, tests: [] };
       try {
         const start = performance.now();
-        // pre-request script (zero-npm)
         let effectiveReq = req;
         let varsForThis = accumulatedVars;
         if (req.preRequestScript && req.preRequestScript.trim()) {
           const pre = runPreRequestBrowser(req.preRequestScript, req, accumulatedVars);
           effectiveReq = pre.request;
           varsForThis = pre.variables;
-          // update accumulator for next requests
           accumulatedVars = pre.variables;
           for (const [k,v] of Object.entries(Object.fromEntries(pre.variables.map(v=>[v.key, v.value])))) chainUpdates[k]=v;
         }
@@ -136,16 +131,11 @@ export function CollectionRunner() {
         row.status = res.statusCode;
         row.ok = res.statusCode >= 200 && res.statusCode < 400;
         row.durationMs = duration;
-        // run tests via browser executor (zero npm)
         let tests: TestResult[] = res.testResults ?? [];
         if (req.testScript && req.testScript.trim()) {
           tests = runTestsBrowser(effectiveReq, res, req.testScript, varsForThis);
-          // capture env mutations from test script? runTestsBrowser currently doesn't return envMap; we extend to capture if needed
-          // For now, also check if script used pm.environment.set via our executor's envMap — we need to expose it
-          // Simple approach: re-run with env capture (we patch executor to return updated vars)
         }
         row.tests = tests;
-        // persist flaky history later
       } catch (err) {
         if ((err as DOMException)?.name === 'AbortError' || controller.signal.aborted) {
           row.error = 'Cancelled';
@@ -168,8 +158,6 @@ export function CollectionRunner() {
         for (let i = 0; i < items.length; i++) {
           if (controller.signal.aborted) break;
           await executeOne(items[i], i);
-          // if sequential and we updated accumulatedVars, reflect to store for next iteration
-          // Also optionally persist to workspaceStore for visibility
         }
       } else {
         const pool = Math.max(1, concurrency);
@@ -203,21 +191,16 @@ export function CollectionRunner() {
       if (finalStatus==='cancelled') addToast({ variant:'warning', title:'Run cancelled', description:`${finalRows.filter(r=>r.status!==null).length}/${items.length} requests executed` });
       else if (failedReq>0 || ft>0) addToast({ variant:'error', title:`Ran ${finalRows.length} requests`, description:`${passedReq} passed · ${failedReq} failed · ${pt} tests passed · ${ft} failed` });
       else addToast({ variant:'success', title:`Ran ${finalRows.length} requests`, description:`All passed · ${pt} tests passed` });
-      // persist variables accumulated from chaining to workspaceStore (sequential only)
       if (mode==='sequential' && Object.keys(chainUpdates).length>0) {
-        // best-effort: update active environment
         const ws = useWorkspaceStore.getState();
         const env = ws.environments.find(e=>e.id===ws.activeEnvironmentId);
         if (env) {
-          // merge
           const vars = [...env.variables];
           for (const [k,v] of Object.entries(chainUpdates)) {
             const idx = vars.findIndex(x=>x.key===k);
             if (idx>=0) vars[idx] = { ...vars[idx], value: v };
             else vars.push({ id:k, key:k, value:v, type:'string', enabled:true } as never);
           }
-          // we don't have direct api update here; use workspaceStore action if available
-          // fallback: silent
         }
       }
     }
@@ -249,7 +232,6 @@ export function CollectionRunner() {
     addToast({ variant:'success', title:'HTML exported', description:a.download });
   };
 
-  // flaky detection across last runs (B)
   const flakySet = (() => {
     const map = new Map<string,{pass:number;total:number}>();
     for (const r of runs) for (const row of r.rows) for (const t of row.tests) {
@@ -266,21 +248,31 @@ export function CollectionRunner() {
   const failedTests = activeRows.reduce((acc, r) => acc + r.tests.filter((t) => !t.passed).length, 0);
 
   return (
-    <div className="flex h-full flex-col bg-[#000000]">
-      <div className="flex items-center gap-2 bg-[#121212] px-3 py-2" style={{ borderBottom:'1px solid #262626' }}>
-        <Play size={16} className="text-[#8B5CF6]" />
-        <h2 className="text-sm font-semibold text-[#E2E8F0]">Collection Runner</h2>
-        {isRunning && activeRun && <span className="ml-2 text-xs text-[#8F909E]">Running {activeRun.collectionName} in background…</span>}
+    <div className="flex h-full flex-col overflow-hidden bg-[#070709]">
+      <div className="flex items-center gap-3 shrink-0 px-5 py-3.5" style={{ background: '#070709', borderBottom: '1px solid #232329' }}>
+        <span className="flex h-8 w-8 items-center justify-center bg-[rgba(139,92,246,0.12)] text-[#8B5CF6]" style={{ border: '1px solid rgba(139,92,246,0.22)' }}>
+          <FlaskConical size={16} strokeWidth={1.8} />
+        </span>
+        <h2 className="text-sm font-semibold tracking-tight text-[#E6E8F0]" style={{ letterSpacing: '-0.01em' }}>Collection Runner</h2>
+        {isRunning && activeRun && (
+          <span className="ml-2 hidden items-center gap-2 font-mono text-xs tabular-nums text-[#7A7F93] sm:inline-flex">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[#8B5CF6] shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
+            Running {activeRun.collectionName} in background…
+          </span>
+        )}
+        <span className="ml-auto hidden items-center gap-1.5 font-mono text-xs tabular-nums text-[#7A7F93] sm:inline-flex">
+          <Layers size={12} /> {collections.length} collections
+        </span>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 bg-[#000000] p-3" style={{ borderBottom:'1px solid #262626' }}>
-        <label className="block">
-          <span className="mb-1 block text-xs text-[#8F909E]">Collection</span>
+      <div className="flex flex-wrap items-end gap-3 bg-[#0E0E10] p-4 shrink-0" style={{ borderBottom: '1px solid #232329' }}>
+        <label className="block min-w-[220px] flex-1 max-w-[320px]">
+          <span className="mb-1.5 block text-xs font-medium tracking-wide text-[#9FA3B5]" style={{ letterSpacing: '0.02em' }}>Collection</span>
           <select
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
-            className="w-56 bg-[#121212] px-2 py-1.5 text-sm text-[#E2E8F0] outline-none"
-            style={{ border:'1px solid #262626', borderRadius:'0px' }}
+            className="w-full bg-[#121215] px-3 py-2 text-sm font-medium text-[#E6E8F0] outline-none transition-colors hover:border-[#2E2E36] focus:border-[#8B5CF6] focus:ring-2 focus:ring-[rgba(139,92,246,0.12)]"
+            style={{ border: '1px solid #232329', height: '38px' }}
           >
             <option value="">Select a collection…</option>
             {collections.map((c) => (
@@ -290,12 +282,12 @@ export function CollectionRunner() {
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-xs text-[#8F909E]">Mode</span>
+          <span className="mb-1.5 block text-xs font-medium tracking-wide text-[#9FA3B5]" style={{ letterSpacing: '0.02em' }}>Mode</span>
           <select
             value={mode}
             onChange={(e) => setMode(e.target.value as 'sequential' | 'parallel')}
-            className="bg-[#121212] px-2 py-1.5 text-sm text-[#E2E8F0] outline-none"
-            style={{ border:'1px solid #262626', borderRadius:'0px' }}
+            className="bg-[#121215] px-3 py-2 text-sm font-medium text-[#E6E8F0] outline-none transition-colors hover:border-[#2E2E36] focus:border-[#8B5CF6] focus:ring-2 focus:ring-[rgba(139,92,246,0.12)]"
+            style={{ border: '1px solid #232329', height: '38px', minWidth: '140px' }}
           >
             <option value="sequential">Sequential</option>
             <option value="parallel">Parallel</option>
@@ -303,107 +295,200 @@ export function CollectionRunner() {
         </label>
 
         {mode === 'parallel' && (
-          <label className="block">
-            <span className="mb-1 block text-xs text-[#8F909E]">Concurrency</span>
+          <label className="block animate-fadeUp">
+            <span className="mb-1.5 block text-xs font-medium tracking-wide text-[#9FA3B5]" style={{ letterSpacing: '0.02em' }}>Concurrency</span>
             <input
               type="number"
               min={1} max={20} value={concurrency}
               onChange={(e) => setConcurrency(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="w-24 bg-[#121212] px-2 py-1.5 text-sm text-[#E2E8F0] outline-none"
-              style={{ border:'1px solid #262626', borderRadius:'0px' }}
+              className="w-24 bg-[#121215] px-3 py-2 text-sm font-medium tabular-nums text-[#E6E8F0] outline-none transition-colors hover:border-[#2E2E36] focus:border-[#8B5CF6] focus:ring-2 focus:ring-[rgba(139,92,246,0.12)]"
+              style={{ border: '1px solid #232329', height: '38px' }}
             />
           </label>
         )}
 
-        {!running ? (
-          <Button variant="primary" onClick={run} disabled={!collection || requests.length === 0}>
-            <Play size={14} /> Run {requests.length} requests
-          </Button>
-        ) : (
-          <Button variant="secondary" onClick={cancel} className="border-[#EF4444] text-[#EF4444] hover:bg-[rgba(239,68,68,0.10)]">
-            <Square size={14} /> Cancel
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!running ? (
+            <Button
+              variant="primary"
+              onClick={run}
+              disabled={!collection || requests.length === 0}
+              className="hover:-translate-y-[1px] hover:shadow-[0_6px_16px_rgba(139,92,246,0.3)] active:translate-y-0 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              style={{ height: '38px', paddingLeft: '18px', paddingRight: '18px' }}
+            >
+              <Play size={14} strokeWidth={2} /> Run {requests.length} request{requests.length !== 1 ? 's' : ''}
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              onClick={cancel}
+              className="hover:-translate-y-[1px] active:translate-y-0"
+              style={{ height: '38px', borderColor: '#EF4444', color: '#EF4444', background: 'rgba(239,68,68,0.08)' }}
+            >
+              <Square size={14} className="fill-current" /> Cancel
+            </Button>
+          )}
+        </div>
         {activeRows.length>0 && !running && (
           <div className="ml-auto flex gap-2">
-            <Button variant="secondary" onClick={exportJUnit}><Download size={14}/> JUnit</Button>
-            <Button variant="secondary" onClick={exportHTML}><Download size={14}/> HTML</Button>
+            <Button variant="secondary" size="sm" onClick={exportJUnit} className="hover:-translate-y-[1px] hover:border-[#2E2E36] active:translate-y-0">
+              <Download size={14}/> JUnit
+            </Button>
+            <Button variant="secondary" size="sm" onClick={exportHTML} className="hover:-translate-y-[1px] hover:border-[#2E2E36] active:translate-y-0">
+              <Download size={14}/> HTML
+            </Button>
           </div>
         )}
       </div>
 
       {collection && requests.length === 0 && (
-        <p className="px-3 py-2 text-sm text-[#8F909E]">This collection has no requests. Add requests under it first.</p>
+        <div className="mx-4 mt-3 flex items-center gap-2 bg-[#121215] px-3 py-2.5 text-xs text-[#7A7F93] animate-fadeUp" style={{ border: '1px solid #232329', borderLeft: '2px solid #F59E0B' }}>
+          <AlertTriangle size={14} className="shrink-0 text-[#F59E0B]" />
+          This collection has no requests. Add requests under it first.
+        </div>
       )}
 
       {running && (
-        <div className="px-3 py-2 bg-[#000000]" style={{ borderBottom:'1px solid #262626' }}>
-          <div className="h-2 w-full overflow-hidden bg-[#121212]" style={{ border:'1px solid #262626' }}>
-            <div className="h-full bg-[#8B5CF6] transition-all" style={{ width: `${(progress / Math.max(1, requests.length)) * 100}%` }} />
+        <div className="px-4 py-3 shrink-0 animate-fadeUp" style={{ background: '#121215', borderBottom: '1px solid #232329' }}>
+          <div className="flex items-center gap-2">
+            <div className="h-2 flex-1 overflow-hidden bg-[#070709]" style={{ border: '1px solid #232329' }}>
+              <div
+                className="h-full transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                style={{
+                  width: `${(progress / Math.max(1, requests.length)) * 100}%`,
+                  background: '#8B5CF6',
+                  boxShadow: '0 0 12px rgba(139,92,246,0.45)',
+                }}
+              />
+            </div>
+            <span className="font-mono text-xs font-semibold tabular-nums text-[#8B5CF6]">{Math.round((progress / Math.max(1, requests.length)) * 100)}%</span>
           </div>
-          <p className="mt-1 text-xs text-[#8F909E]">{progress} / {requests.length} — don’t block UI, you can switch tabs. <button onClick={cancel} className="ml-2 text-[#EF4444] underline">Cancel</button></p>
+          <p className="mt-1.5 flex items-center gap-1.5 font-mono text-xs tabular-nums text-[#7A7F93]">
+            <Timer size={11} /> {progress} / {requests.length} — don’t block UI, you can switch tabs.
+            <button onClick={cancel} className="ml-2 font-medium text-[#EF4444] underline decoration-[rgba(239,68,68,0.30)] underline-offset-2 hover:text-[#DC2626]">Cancel</button>
+          </p>
         </div>
       )}
 
       {activeRows.length > 0 && (
-        <div className="flex items-center gap-3 px-3 py-2 text-xs bg-[#000000]" style={{ borderBottom:'1px solid #262626' }}>
-          <span className="text-[#8F909E]">{activeRows.length} requests</span>
-          <span className="text-[#10B981]">{activeRows.filter((r) => r.ok).length} passed</span>
-          <span className="text-[#EF4444]">{activeRows.filter((r) => !r.ok).length} failed</span>
-          <span className="text-[#8F909E]">{passedTests} tests passed / {failedTests} failed</span>
-          {activeRun?.status==='cancelled' && <span className="text-[#FBBF24]">Cancelled</span>}
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 text-xs shrink-0" style={{ background: '#0E0E10', borderBottom: '1px solid #232329' }}>
+          <span className="inline-flex items-center gap-1.5 font-mono text-xs tabular-nums text-[#7A7F93]">
+            <Layers size={12} /> {activeRows.length} requests
+          </span>
+          <span className="h-3 w-px bg-[#232329]" />
+          <span className="inline-flex items-center gap-1.5 px-2 py-1 font-semibold tabular-nums text-[#10B981]" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.20)' }}>
+            <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" /> {activeRows.filter((r) => r.ok).length} passed
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2 py-1 font-semibold tabular-nums text-[#EF4444]" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.18)' }}>
+            <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444]" /> {activeRows.filter((r) => !r.ok).length} failed
+          </span>
+          <span className="hidden h-3 w-px bg-[#232329] sm:block" />
+          <span className="font-mono tabular-nums text-[#7A7F93]">{passedTests} tests passed / {failedTests} failed</span>
+          {activeRun?.status==='cancelled' && <span className="ml-auto inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-[#F59E0B]" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.22)' }}>Cancelled</span>}
         </div>
       )}
 
-      {/* history of runs */}
       {runs.length>0 && (
-        <div className="flex gap-2 overflow-auto px-3 py-2 bg-[#121212]" style={{ borderBottom:'1px solid #262626' }}>
+        <div className="flex gap-2 overflow-auto px-4 py-2.5 shrink-0" style={{ background: '#121215', borderBottom: '1px solid #232329' }}>
           {runs.slice(0,5).map(r=>(
-            <button key={r.id} onClick={()=>useTestingStore.setState({activeRunId:r.id})}
-              className="shrink-0 px-2 py-1 text-xs border"
-              style={{ borderColor: r.id===activeRunId?'#8B5CF6':'#262626', background: r.id===activeRunId?'rgba(139,92,246,0.10)':'#000000', color: r.status==='running'?'#FBBF24':r.status==='cancelled'?'#8F909E':r.status==='done'?'#10B981':'#E2E8F0', borderRadius:'0px' }}>
+            <button
+              key={r.id}
+              onClick={()=>useTestingStore.setState({activeRunId:r.id})}
+              className="shrink-0 px-3 py-1.5 text-xs font-medium tabular-nums transition-all hover:-translate-y-[1px] hover:border-[#2E2E36] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(139,92,246,0.45)]"
+              style={{
+                border: `1px solid ${r.id===activeRunId?'#8B5CF6':'#232329'}`,
+                background: r.id===activeRunId?'rgba(139,92,246,0.12)':'#070709',
+                color: r.status==='running'?'#F59E0B':r.status==='cancelled'?'#7A7F93':r.status==='done'?'#10B981':'#E6E8F0',
+                boxShadow: r.id===activeRunId ? '0 0 0 3px rgba(139,92,246,0.10)' : 'none',
+              }}
+            >
               {r.collectionName} · {r.status} · {r.progress}/{r.total}
             </button>
           ))}
         </div>
       )}
 
-      <div className="flex-1 overflow-auto p-3 bg-[#000000]">
+      <div className="flex-1 overflow-auto p-4 bg-[#070709]">
         {activeRows.length === 0 ? (
-          <p className="text-sm text-[#8F909E]">Run a collection to see per-request results here. Runs continue in background — you can navigate away.</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-12 text-center animate-fadeUp">
+            <div className="flex h-12 w-12 items-center justify-center bg-[#121215] text-[#7A7F93]" style={{ border: '1px solid #232329' }}>
+              <FlaskConical size={20} strokeWidth={1.5} />
+            </div>
+            <p className="text-sm font-semibold tracking-tight text-[#E6E8F0]">No runs yet</p>
+            <p className="max-w-[42ch] text-xs leading-relaxed text-[#7A7F93]">Select a collection and hit Run. Execution continues in background — you can navigate away. Progress and results appear here.</p>
+          </div>
         ) : (
-          <table className="w-full text-left text-sm tabular-nums">
-            <thead>
-              <tr className="text-xs text-[#8F909E]" style={{ borderBottom:'1px solid #262626' }}>
-                <th className="py-1 pr-2">Status</th>
-                <th className="py-1 pr-2">Method</th>
-                <th className="py-1 pr-2">Name</th>
-                <th className="py-1 pr-2">URL</th>
-                <th className="py-1 pr-2">Time</th>
-                <th className="py-1">Tests</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeRows.map((r, i) => (
-                <tr key={`${r.id}-${i}`} style={{ borderBottom:'1px solid #262626' }}>
-                  <td className="py-1 pr-2">
-                    {r.error ? <span className="text-[#EF4444]"><XCircle size={14} className="inline" /> ERR</span>
-                      : r.ok ? <span className="text-[#10B981]"><CheckCircle2 size={14} className="inline" /> {r.status}</span>
-                      : r.status===null ? <span className="text-[#8F909E]"><Loader2 size={14} className="inline animate-spin"/></span>
-                      : <span className="text-[#EF4444]"><XCircle size={14} className="inline" /> {r.status}</span>}
-                  </td>
-                  <td className="py-1 pr-2 font-mono text-xs" style={{ color: METHOD_COLORS[r.method as keyof typeof METHOD_COLORS] ?? '#8F909E' }}>{r.method}</td>
-                  <td className="py-1 pr-2 text-[#E2E8F0]">{r.name || '—'}</td>
-                  <td className="max-w-[240px] py-1 pr-2 text-[#8F909E]"><div className="truncate" title={r.url}>{r.url}</div>{r.error && <span className="block break-all text-xs text-[#EF4444]">{r.error}</span>}</td>
-                  <td className="py-1 pr-2 font-mono text-xs text-[#8F909E]">{r.durationMs != null ? `${r.durationMs} ms` : '—'}</td>
-                  <td className="py-1 text-[#8F909E]">
-                    {r.tests.length > 0 ? `${r.tests.filter((t) => t.passed).length}/${r.tests.length}` : '—'}
-                    {r.tests.some(t=>flakySet.has(`${r.name}::${t.name}`)) && <span className="ml-1 px-1 py-0.5 text-xs" style={{background:'rgba(251,191,36,0.15)', color:'#FBBF24', border:'1px solid #FBBF24', borderRadius:'0px', fontSize:'10px'}}>⚠ Flaky</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-hidden bg-[#121215]" style={{ border: '1px solid #232329' }}>
+            <div className="overflow-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-widest text-[#7A7F93]" style={{ background: '#0E0E10', borderBottom: '1px solid #232329', letterSpacing: '0.07em' }}>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">Status</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">Method</th>
+                    <th className="px-3 py-2.5 font-semibold">Name</th>
+                    <th className="px-3 py-2.5 font-semibold">URL</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold tabular-nums">Time</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">Tests</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1E1E24]">
+                  {activeRows.map((r, i) => {
+                    const passed = r.tests.filter((t) => t.passed).length;
+                    const total = r.tests.length;
+                    const hasFlaky = r.tests.some(t=>flakySet.has(`${r.name}::${t.name}`));
+                    return (
+                      <tr
+                        key={`${r.id}-${i}`}
+                        className="group transition-colors hover:bg-[#16161A] animate-fadeUp"
+                        style={{ animationDelay: `${i * 14}ms`, borderLeft: `2px solid ${r.error ? '#EF4444' : r.ok ? '#10B981' : '#232329'}` }}
+                      >
+                        <td className="px-3 py-2.5">
+                          {r.error ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-semibold" style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.22)' }}>
+                              <XCircle size={12} /> ERR
+                            </span>
+                          ) : r.ok ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-semibold tabular-nums" style={{ background: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.22)' }}>
+                              <CheckCircle2 size={12} /> {r.status}
+                            </span>
+                          ) : r.status===null ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-[#7A7F93]" style={{ background: '#070709', border: '1px solid #232329' }}>
+                              <Loader2 size={12} className="animate-spin" />
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-semibold tabular-nums" style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.22)' }}>
+                              <XCircle size={12} /> {r.status}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-xs font-semibold" style={{ color: METHOD_COLORS[r.method as keyof typeof METHOD_COLORS] ?? '#7A7F93' }}>{r.method}</td>
+                        <td className="px-3 py-2.5 text-[#E6E8F0]">
+                          <span className="line-clamp-1 font-medium">{r.name || '—'}</span>
+                        </td>
+                        <td className="max-w-[280px] px-3 py-2.5">
+                          <div className="truncate font-mono text-xs tabular-nums text-[#7A7F93]" title={r.url}>{r.url}</div>
+                          {r.error && <span className="mt-1 block break-all rounded bg-[#070709] px-1.5 py-1 font-mono text-xs text-[#EF4444]" style={{ border: '1px solid rgba(239,68,68,0.16)' }}>{r.error}</span>}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs tabular-nums text-[#7A7F93]">{r.durationMs != null ? `${r.durationMs} ms` : '—'}</td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {total > 0 ? (
+                              <span className={`inline-flex items-center px-2 py-1 font-mono text-xs font-semibold tabular-nums ${passed===total ? 'text-[#10B981]' : passed===0 ? 'text-[#EF4444]' : 'text-[#F59E0B]'}`} style={{ background: passed===total ? 'rgba(16,185,129,0.12)' : passed===0 ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)', border: `1px solid ${passed===total ? 'rgba(16,185,129,0.22)' : passed===0 ? 'rgba(239,68,68,0.22)' : 'rgba(245,158,11,0.22)'}` }}>
+                                {passed}/{total}
+                              </span>
+                            ) : (
+                              <span className="font-mono text-xs tabular-nums text-[#7A7F93]">—</span>
+                            )}
+                            {hasFlaky && <span className="inline-flex items-center gap-1 px-1.5 py-1 text-xs font-semibold" style={{background:'rgba(245,158,11,0.14)', color:'#F59E0B', border:'1px solid rgba(245,158,11,0.30)'}}><AlertTriangle size={10}/> Flaky</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
     </div>

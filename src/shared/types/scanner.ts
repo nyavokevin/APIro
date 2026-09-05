@@ -46,6 +46,12 @@ export interface ScannedRoute {
   responseSchemas: string[];
 }
 
+export interface ScanWarning {
+  severity: 'info' | 'warn' | 'error';
+  file?: string | null;
+  message: string;
+}
+
 export interface SourceScanResult {
   framework: BackendFramework;
   language: ScannerLanguage;
@@ -53,11 +59,12 @@ export interface SourceScanResult {
   totalFiles: number;
   totalRoutes: number;
   routes: ScannedRoute[];
-  warnings: string[];
+  warnings: (string | ScanWarning)[];
 }
 
 export interface SourceScanOptions {
   includeComments?: boolean;
   includeTests?: boolean;
   maxFiles?: number;
+  forcedFramework?: BackendFramework;
 }

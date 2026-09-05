@@ -28,7 +28,12 @@ export function CollectionTree({ nodes, onOpenRequest }: CollectionTreeProps) {
   const openRequest = useRequestStore((s) => s.openRequest);
 
   if (nodes.length === 0) {
-    return <p className="px-2 text-xs text-[var(--text-secondary)]">No collections yet.</p>;
+    return (
+      <div className="border border-dashed border-[#232329] bg-[#0E0E10] px-3 py-6 text-center">
+        <p className="text-[13px] font-medium tracking-[-0.02em] text-[#9FA3B5]">No collections yet</p>
+        <p className="mt-1 text-xs tracking-[-0.01em] text-[#7A7F93]">Create a folder or import a collection — requests will appear here.</p>
+      </div>
+    );
   }
 
   const openById = (id: string) => {
@@ -41,9 +46,15 @@ export function CollectionTree({ nodes, onOpenRequest }: CollectionTreeProps) {
   };
 
   return (
-    <ul className="space-y-0.5">
-      {nodes.map((node) => (
-        <TreeItem key={node.id} node={node} depth={0} onRemove={remove} onUpdate={update} onOpen={openById} />
+    <ul className="space-y-1">
+      {nodes.map((node, idx) => (
+        <li
+          key={node.id}
+          className="animate-fadeUp"
+          style={{ animationDelay: `${idx * 32}ms`, animationFillMode: 'both' }}
+        >
+          <TreeItem node={node} depth={0} onRemove={remove} onUpdate={update} onOpen={openById} />
+        </li>
       ))}
     </ul>
   );
@@ -65,6 +76,7 @@ function TreeItem({ node, depth, onRemove, onUpdate, onOpen }: TreeItemProps) {
   const hasChildren = !!node.children && node.children.length > 0;
   const isRequest = node.type === 'request';
   const requestCount = isRequest ? 0 : collectRequests(node).length;
+  const method = isRequest ? (node.data?.method as string | undefined) : undefined;
 
   const startRenaming = () => {
     setDraft(node.name);
@@ -84,21 +96,42 @@ function TreeItem({ node, depth, onRemove, onUpdate, onOpen }: TreeItemProps) {
   return (
     <li>
       <div
-        className="group flex items-center gap-1 rounded px-1 py-1 text-sm hover:bg-[var(--bg-tertiary)]"
-        style={{ paddingLeft: depth * 12 + 4 }}
+        className="group flex items-center gap-1.5 border border-transparent px-1 py-1 text-[13px] transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-[1px] hover:border-[#2E2E36] hover:bg-[#121215] hover:shadow-[0_1px_3px_rgba(0,0,0,0.4)] focus-within:border-[#2E2E36] focus-within:bg-[#121215]"
+        style={{ paddingLeft: depth * 14 + 6, borderRadius: '0px' }}
       >
         {hasChildren ? (
-          <button onClick={() => setOpen(!open)} className="text-[var(--text-secondary)]">
-            {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <button
+            onClick={() => setOpen(!open)}
+            className="flex h-5 w-5 shrink-0 items-center justify-center border border-transparent text-[#7A7F93] transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-[#232329] hover:bg-[#0E0E10] hover:text-[#E6E8F0] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(139,92,246,0.35)]"
+            style={{ borderRadius: '0px' }}
+            aria-label={open ? 'Collapse' : 'Expand'}
+          >
+            {open ? <ChevronDown size={13} strokeWidth={2} /> : <ChevronRight size={13} strokeWidth={2} />}
           </button>
         ) : (
-          <span className="w-3.5" />
+          <span className="w-5 shrink-0" />
         )}
 
         {isRequest ? (
-          <FileCode size={14} className="text-[var(--accent)]" />
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-[rgba(139,92,246,0.14)] bg-[rgba(139,92,246,0.08)] text-[#8B5CF6]">
+            <FileCode size={12} strokeWidth={1.75} />
+          </span>
         ) : (
-          <Folder size={14} className="text-[var(--text-secondary)]" />
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-[#232329] bg-[#0E0E10] text-[#7A7F93] group-hover:border-[#2E2E36] group-hover:text-[#9FA3B5]">
+            <Folder size={12} strokeWidth={1.75} />
+          </span>
+        )}
+
+        {isRequest && method && (
+          <span className="hidden shrink-0 border border-[#232329] bg-[#070709] px-1 py-0.5 font-mono text-[10px] tabular-nums leading-none tracking-wide text-[#9FA3B5] sm:inline-flex">
+            {method}
+          </span>
+        )}
+
+        {!isRequest && requestCount > 0 && (
+          <span className="hidden shrink-0 border border-[#232329] bg-[#070709] px-1 py-0.5 font-mono text-[10px] tabular-nums leading-none tracking-[-0.01em] text-[#7A7F93] sm:inline-flex">
+            {requestCount}
+          </span>
         )}
 
         {renaming ? (
@@ -113,56 +146,63 @@ function TreeItem({ node, depth, onRemove, onUpdate, onOpen }: TreeItemProps) {
               if (e.key === 'Enter') commitRename();
               if (e.key === 'Escape') setRenaming(false);
             }}
-            className="min-w-0 flex-1 rounded border border-[var(--accent)] bg-[var(--bg-primary)] px-1 py-0.5 text-sm text-[var(--text-primary)] outline-none"
+            className="min-w-0 flex-1 border border-[#8B5CF6] bg-[#070709] px-2 py-1 text-[13px] tracking-[-0.02em] text-[#E6E8F0] tabular-nums outline-none placeholder:text-[#5A5E6E] focus:shadow-[0_0_0_3px_rgba(139,92,246,0.12)]"
+            style={{ borderRadius: '0px' }}
             aria-label="Rename"
           />
         ) : (
           <button
-            className="flex-1 truncate text-left text-[var(--text-primary)]"
+            className="min-w-0 flex-1 truncate text-left tracking-[-0.02em] text-[#E6E8F0] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(139,92,246,0.35)] focus-visible:ring-offset-0"
             onClick={() => (isRequest ? onOpen(node.id) : setOpen(!open))}
             onDoubleClick={startRenaming}
             title={isRequest ? 'Open in a workspace tab (double-click to rename)' : 'Double-click to rename'}
           >
-            {node.name}
+            <span className="truncate font-[450]">{node.name}</span>
+            {isRequest && node.data?.url && <span className="ml-1.5 hidden font-mono text-[11px] tabular-nums tracking-[-0.01em] text-[#5A5E6E] lg:inline">{String(node.data.url).slice(0, 44)}</span>}
           </button>
         )}
 
-        <button
-          onClick={startRenaming}
-          className="text-[var(--text-secondary)] opacity-0 hover:text-[var(--accent)] group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
-          aria-label="Rename"
-          title="Rename"
-        >
-          <Pencil size={13} />
-        </button>
-
-        {/* Open every request in this collection as its own workspace tab. */}
-        {!isRequest && requestCount > 0 && (
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <button
-            onClick={() => {
-              for (const r of collectRequests(node)) onOpen(r.id);
-            }}
-            className="text-[var(--text-secondary)] opacity-0 hover:text-[var(--accent)] group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
-            aria-label={`Open all ${requestCount} request(s)`}
-            title={`Open all ${requestCount} request(s) in tabs`}
+            onClick={startRenaming}
+            className="flex h-6 w-6 items-center justify-center border border-transparent text-[#5A5E6E] opacity-0 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-[#232329] hover:bg-[#0E0E10] hover:text-[#E6E8F0] hover:shadow-[0_1px_2px_rgba(0,0,0,0.3)] active:scale-[0.98] group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(139,92,246,0.35)]"
+            aria-label="Rename"
+            title="Rename"
+            style={{ borderRadius: '0px' }}
           >
-            <FolderOpen size={13} />
+            <Pencil size={12} strokeWidth={1.75} />
           </button>
-        )}
 
-        {!isRequest && (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="text-[var(--text-secondary)] opacity-0 hover:text-danger group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
-            aria-label="Delete"
-          >
-            <Trash2 size={13} />
-          </button>
-        )}
+          {/* Open every request in this collection as its own workspace tab. */}
+          {!isRequest && requestCount > 0 && (
+            <button
+              onClick={() => {
+                for (const r of collectRequests(node)) onOpen(r.id);
+              }}
+              className="flex h-6 w-6 items-center justify-center border border-transparent text-[#5A5E6E] opacity-0 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-[#232329] hover:bg-[#0E0E10] hover:text-[#8B5CF6] active:scale-[0.98] group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(139,92,246,0.35)]"
+              aria-label={`Open all ${requestCount} request(s)`}
+              title={`Open all ${requestCount} request(s) in tabs`}
+              style={{ borderRadius: '0px' }}
+            >
+              <FolderOpen size={12} strokeWidth={1.75} />
+            </button>
+          )}
+
+          {!isRequest && (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex h-6 w-6 items-center justify-center border border-transparent text-[#5A5E6E] opacity-0 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-[rgba(239,68,68,0.2)] hover:bg-[rgba(239,68,68,0.10)] hover:text-[#EF4444] active:scale-[0.98] group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(239,68,68,0.35)]"
+              aria-label="Delete"
+              style={{ borderRadius: '0px' }}
+            >
+              <Trash2 size={12} strokeWidth={1.75} />
+            </button>
+          )}
+        </div>
       </div>
 
       {hasChildren && open && (
-        <ul className="space-y-0.5">
+        <ul className="mt-1 space-y-1 border-l border-[#1E1E24] pl-2" style={{ marginLeft: depth * 14 + 14 }}>
           {node.children!.map((child) => (
             <TreeItem
               key={child.id}
@@ -197,10 +237,10 @@ function TreeItem({ node, depth, onRemove, onUpdate, onOpen }: TreeItemProps) {
           </>
         }
       >
-        <p className="text-sm text-[var(--text-primary)]">
+        <p className="text-sm tracking-[-0.01em] text-[#E6E8F0]">
           Delete “{node.name}”{requestCount > 0 ? ` and its ${requestCount} request(s)` : ''}?
         </p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">This cannot be undone.</p>
+        <p className="mt-1.5 text-xs tracking-[-0.01em] text-[#9FA3B5]">This cannot be undone.</p>
       </Modal>
     </li>
   );

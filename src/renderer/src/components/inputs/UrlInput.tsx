@@ -22,7 +22,7 @@ export function UrlInput({ method, url, loading = false, onMethodChange, onUrlCh
           style={{
             border: '1px solid #262626',
             borderRadius: '0px',
-            padding: '8px 28px 8px 12px',
+            padding: '8px 40px 8px 12px',
             fontSize: '13px',
             color: METHOD_COLORS[method],
             background: 'transparent',
@@ -33,7 +33,7 @@ export function UrlInput({ method, url, loading = false, onMethodChange, onUrlCh
             <option key={m} value={m} style={{ background: '#121212', color: '#E2E8F0' }}>{m}</option>
           ))}
         </select>
-        <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#8F909E]" />
+        <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8F909E]" />
       </div>
 
       <input

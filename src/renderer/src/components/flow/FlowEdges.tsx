@@ -30,8 +30,6 @@ function bezierPath(s: FlowNode, t: FlowNode): string {
   }
 }
 
-
-
 export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover, impactedEdgeIds }: Props) {
   const byId = new Map(nodes.map((n) => [n.id, n] as const));
 
@@ -54,10 +52,10 @@ export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover, 
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffb224" />
         </marker>
         <marker id="flow-arrow-seq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d3d3d" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#5A5E6E" />
         </marker>
         <marker id="flow-arrow-err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff4d4f" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#EF4444" />
         </marker>
       </defs>
 
@@ -74,15 +72,14 @@ export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover, 
           e.edgeType === 'authFlow' ? 'url(#flow-arrow-auth)' :
           e.edgeType === 'sequence' ? 'url(#flow-arrow-seq)' :
           e.edgeType === 'errorFlow' ? 'url(#flow-arrow-err)' : 'url(#flow-arrow-data)';
-        const strokeWidth = isImpacted ? 3 : isActive ? 3 : isHovered ? 2.6 : e.edgeType === 'sequence' ? 1.5 : 2;
-        const opacity = isImpacted ? 1 : e.edgeType === 'sequence' ? 0.55 : 0.95;
+        const strokeWidth = isImpacted ? 3 : isActive ? 3 : isHovered ? 2.6 : e.edgeType === 'sequence' ? 1.4 : 2;
+        const opacity = isImpacted ? 1 : e.edgeType === 'sequence' ? 0.48 : 0.92;
         const dash = e.edgeType === 'sequence' ? '6 5' : undefined;
-        const sw = isImpacted ? '#EF4444' : isActive ? '#ededed' : e.color;
+        const sw = isImpacted ? '#EF4444' : isActive ? '#E6E8F0' : e.color;
         const mid = {
           x: (s.x + t.x + s.width) / 2 + (s.width / 2) - 0,
           y: (s.y + t.y) / 2 + 36,
         };
-        // Adjust mid to be nearer the curve center
         const label = e.label;
 
         return (
@@ -90,28 +87,27 @@ export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover, 
             onMouseEnter={() => onHover(e.id)}
             onMouseLeave={() => onHover(null)}
           >
-            {/* hit area */}
             <path d={d} fill="none" stroke="transparent" strokeWidth={14} style={{ pointerEvents: 'stroke' }} />
             <path
               d={d}
               fill="none"
-              stroke={isImpacted ? '#EF4444' : isActive ? '#ededed' : e.color}
+              stroke={isImpacted ? '#EF4444' : isActive ? '#E6E8F0' : e.color}
               strokeWidth={strokeWidth}
               strokeDasharray={dash}
               markerEnd={marker}
               opacity={opacity}
-              style={e.animated ? { strokeDasharray: e.edgeType === 'sequence' ? '6 5' : '8 6', animation: 'flow-dash 900ms linear infinite' } as any : undefined}
+              style={e.animated ? { strokeDasharray: e.edgeType === 'sequence' ? '6 5' : '8 6', animation: 'flow-dash 900ms linear infinite', filter: isHovered ? `drop-shadow(0 0 6px ${e.color}66)` : undefined } as any : isHovered ? { filter: `drop-shadow(0 0 6px ${e.color}55)` } as any : undefined}
             />
             {label && (
-              <g>
+              <g style={{ filter: isHovered || isActive ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))' : undefined }}>
                 <rect
                   x={mid.x - (label.length * 3.2 + 8) / 2}
                   y={mid.y - 9}
                   width={label.length * 6.4 + 8}
                   height={14}
-                  rx={3}
-                  fill="#0a0a0a"
-                  stroke={isActive || isHovered ? sw : '#262626'}
+                  rx={0}
+                  fill={isImpacted ? 'rgba(239,68,68,0.16)' : '#121215'}
+                  stroke={isActive || isHovered ? sw : '#232329'}
                   strokeWidth={0.9}
                 />
                 <text
@@ -120,8 +116,8 @@ export function FlowEdges({ edges, nodes, hoveredEdgeId, activeEdgeId, onHover, 
                   textAnchor="middle"
                   fontSize={10}
                   fontFamily="JetBrains Mono, ui-monospace, monospace"
-                  fontWeight={600}
-                  fill={isActive ? '#ededed' : e.color}
+                  fontWeight={700}
+                  fill={isImpacted ? '#EF4444' : isActive ? '#E6E8F0' : e.color}
                 >
                   {label}
                 </text>

@@ -215,11 +215,28 @@ async function writeEnvironments(envs: Environment[]): Promise<void> {
 
 // ---------- Scan stub (frontend fetch) ----------
 
+function hostUrlFetch(baseUrl: string): string {
+  const trimmed = baseUrl.trim();
+  try {
+    const u = new URL(trimmed);
+    let pathname = u.pathname.replace(/\/$/, '');
+    if (pathname.toLowerCase().endsWith('/graphql')) pathname = pathname.slice(0, -'/graphql'.length);
+    const origin = u.origin;
+    if (!pathname || pathname === '/') return origin;
+    return origin + pathname.replace(/\/$/, '');
+  } catch {
+    let url = trimmed.replace(/\/$/, '');
+    if (url.toLowerCase().endsWith('/graphql')) url = url.slice(0, -'/graphql'.length);
+    return url.replace(/\/$/, '');
+  }
+}
+
 async function scanBackend(baseUrl: string): Promise<ScanResult> {
+  const base = hostUrlFetch(baseUrl);
   const candidates = ['/swagger.json', '/openapi.json', '/api-docs', '/v3/api-docs', '/swagger/v1/swagger.json'];
   for (const c of candidates) {
     try {
-      const res = await fetch(baseUrl.replace(/\/$/, '') + c);
+      const res = await fetch(base + c);
       if (res.ok) {
         const json = await res.json();
         if (json && (json.swagger || json.openapi || json.paths)) {
@@ -238,14 +255,39 @@ async function scanBackend(baseUrl: string): Promise<ScanResult> {
               });
             }
           }
-          return { url: baseUrl, detectedSpec: (json as { swagger?: unknown }).swagger ? 'swagger' : 'openapi', endpoints, raw: json };
+          return { url: base, detectedSpec: (json as { swagger?: unknown }).swagger ? 'swagger' : 'openapi', endpoints, raw: json };
         }
       }
     } catch {
       /* next */
     }
   }
-  return { url: baseUrl, detectedSpec: 'none', endpoints: [] };
+  // GraphQL introspection fallback
+  try {
+    const graphqlUrl = base + '/graphql';
+    const res = await fetch(graphqlUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: `query IntrospectionQuery { __schema { queryType { name fields { name } } mutationType { name fields { name } } } }` }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const schema = json?.data?.__schema;
+      if (schema) {
+        const endpoints: ScanResult['endpoints'] = [];
+        for (const t of [schema.queryType, schema.mutationType]) {
+          if (!t || !Array.isArray(t.fields)) continue;
+          for (const f of t.fields) {
+            endpoints.push({ method: 'POST', path: '/graphql', summary: String(f.name), tags: ['graphql'], parameters: [] });
+          }
+        }
+        if (endpoints.length > 0) return { url: base, detectedSpec: 'graphql', endpoints };
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return { url: base, detectedSpec: 'none', endpoints: [] };
 }
 
 // ---------- Export helpers ----------
@@ -438,6 +480,32 @@ export async function tauriInvokeMapped<T>(channel: string, args: unknown[]): Pr
       collectionsCache = null;
       return res;
     }
+    case 'scanner:getLastScan': {
+      const projectPath = args[0] as string;
+      return await invokeTauri<T>('scanner_get_last_scan', { projectPath });
+    }
+    case 'scanner:diffScans': {
+      const previous = args[0] as unknown;
+      const current = args[1] as unknown;
+      return await invokeTauri<T>('scanner_diff_scans', { previous, current });
+    }
+    case 'scanner:exportOpenApi': {
+      const scanResult = args[0] as unknown;
+      const outputPath = args[1] as string | null | undefined;
+      return await invokeTauri<T>('scanner_export_openapi', { scanResult, outputPath: outputPath ?? null });
+    }
+    case 'scanner:watchStart': {
+      const projectPath = args[0] as string;
+      return await invokeTauri<T>('scanner_watch_start', { projectPath });
+    }
+    case 'scanner:watchStop': {
+      const projectPath = args[0] as string;
+      return await invokeTauri<T>('scanner_watch_stop', { projectPath });
+    }
+    case 'scanner:watchIsActive': {
+      const projectPath = args[0] as string;
+      return await invokeTauri<T>('scanner_watch_is_active', { projectPath });
+    }
     case 'route-scanner:scan':
       return (await scanBackend(args[0] as string)) as unknown as T;
     case 'route-scanner:generate': {
@@ -460,11 +528,18 @@ export async function tauriInvokeMapped<T>(channel: string, args: unknown[]): Pr
           folders.set(tag, folder);
           root.children!.push(folder);
         }
+        const joinUrl = (base: string, path: string) => {
+          if (path.startsWith('http')) return path;
+          const b = base.replace(/\/$/, '');
+          const p = path.startsWith('/') ? path : '/' + path;
+          if (b.toLowerCase().endsWith('/graphql') && p.toLowerCase() === '/graphql') return b;
+          return b + p;
+        };
         const req: RequestData = {
           id: genId(),
           name: ep.summary || `${ep.method} ${ep.path}`,
           method: ep.method,
-          url: ep.path.startsWith('http') ? ep.path : `${input.url}${ep.path}`,
+          url: joinUrl(input.url, ep.path),
           headers: [],
           params: ep.parameters ?? [],
           bodyType: 'none',

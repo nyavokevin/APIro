@@ -73,7 +73,7 @@ export function EnvironmentModal({ open, onClose, environment }: EnvironmentModa
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <div className="grid grid-cols-[1fr_90px_1fr_28px] gap-2 px-1 text-[11px] uppercase tracking-wide text-muted">
+        <div className="grid grid-cols-[1fr_90px_1fr_28px] gap-2 px-1 text-[11px] font-medium uppercase tracking-widest" style={{ color: '#7A7F93', letterSpacing: '0.08em' }}>
           <span>Key</span>
           <span>Type</span>
           <span>Value</span>
@@ -90,7 +90,8 @@ export function EnvironmentModal({ open, onClose, environment }: EnvironmentModa
               <select
                 value={v.type}
                 onChange={(e) => update(v.id, { type: e.target.value as VariableType })}
-                className="rounded border border-border bg-panel-alt px-1.5 py-1.5 text-xs text-content"
+                className="border bg-[#121215] px-2 py-1.5 text-xs outline-none hover:border-[#2E2E36] focus:border-[#8B5CF6] transition-colors"
+                style={{ borderColor: '#232329', borderRadius: '0px', color: '#E6E8F0' }}
               >
                 {TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -99,18 +100,20 @@ export function EnvironmentModal({ open, onClose, environment }: EnvironmentModa
                 ))}
               </select>
               {v.type === 'secret' ? (
-                <div className="flex items-center gap-1 rounded-md border border-border bg-panel-alt px-2">
+                <div className="flex items-center gap-1 border bg-[#121215] px-2 transition-colors hover:border-[#2E2E36] focus-within:border-[#8B5CF6]" style={{ borderColor: '#232329', borderRadius: '0px' }}>
                   <input
                     type={revealed[v.id] ? 'text' : 'password'}
                     value={v.value}
                     placeholder="value"
                     onChange={(e) => update(v.id, { value: e.target.value })}
-                    className="w-full bg-transparent py-1.5 text-sm text-content outline-none"
+                    className="w-full bg-transparent py-1.5 text-sm outline-none placeholder:text-[#5A5E6E]"
+                    style={{ color: '#E6E8F0' }}
                   />
                   <button
                     type="button"
                     onClick={() => setRevealed((r) => ({ ...r, [v.id]: !r[v.id] }))}
-                    className="text-muted"
+                    className="p-1 hover:text-[#E6E8F0] transition-colors"
+                    style={{ color: '#7A7F93', borderRadius: '0px' }}
                   >
                     {revealed[v.id] ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -124,7 +127,8 @@ export function EnvironmentModal({ open, onClose, environment }: EnvironmentModa
               )}
               <button
                 onClick={() => setVariables((vs) => vs.filter((x) => x.id !== v.id))}
-                className="text-muted hover:text-danger"
+                className="p-1 hover:text-[#EF4444] hover:bg-[rgba(239,68,68,0.10)] transition-colors"
+                style={{ color: '#7A7F93', borderRadius: '0px' }}
               >
                 <Trash2 size={15} />
               </button>

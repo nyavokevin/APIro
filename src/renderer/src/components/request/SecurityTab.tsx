@@ -1,11 +1,24 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Shield, Search, Scale, ExternalLink, X, AlertTriangle, Info, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import type { RequestData, ResponseData } from '@shared/types/request';
 import { useSecurityStore, type SecurityFinding, type SecuritySeverity } from '../../stores/securityStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useNotificationStore } from '../../stores/notificationStore';
+import { useEnvironmentStore } from '../../stores/environmentStore';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+
+function isProdEnv(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase().trim();
+  return n.includes('prod') || n.includes('live') || n === 'production';
+}
+function isSensitiveEnv(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase().trim();
+  if (n === 'local' || n === 'dev' || n === 'development') return false;
+  return true;
+}
 
 interface SecurityTabProps {
   request: RequestData;
@@ -50,6 +63,8 @@ function AuthMatrixModal({
   const [loading, setLoading] = useState(false);
   const url = request.url || 'https://api.example.com/users/{{id}}';
   const method = request.method;
+  const activeEnvNameModal = useEnvironmentStore((s) => s.environments.find((e) => e.id === s.activeId)?.name ?? null);
+  const isProdModal = isProdEnv(activeEnvNameModal);
 
   const runTest = async () => {
     if (!request.url) {
@@ -104,6 +119,12 @@ function AuthMatrixModal({
       }
     >
       <div className="space-y-4">
+        {isProdModal && (
+          <div className="flex items-start gap-2 rounded p-2.5 text-xs" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#FCA5A5' }}>
+            <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+            <span><strong>Production:</strong> {activeEnvNameModal} — real requests will be sent.</span>
+          </div>
+        )}
         <div className="bg-[#0A0A0A] p-3" style={{ border: '1px solid #262626', borderRadius: '0px' }}>
           <div className="font-mono text-xs text-[#8F909E]">Requête pré-remplie</div>
           <div className="mt-1 flex items-center gap-2 font-mono text-sm text-[#E2E8F0]">
@@ -279,11 +300,22 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
   const setActivePage = useUiStore((s) => s.setActivePage);
   const [bolaOpen, setBolaOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const activeEnvName = useEnvironmentStore((s) => s.environments.find((e) => e.id === s.activeId)?.name ?? null);
+  const isProd = useMemo(() => isProdEnv(activeEnvName), [activeEnvName]);
+  const isSensitive = useMemo(() => isSensitiveEnv(activeEnvName), [activeEnvName]);
+  const [confirmBolaOpen, setConfirmBolaOpen] = useState(false);
 
-  const handleScan = () => {
+  const doPassiveScan = () => {
     if (!response) {
       useNotificationStore.getState().addToast({ variant: 'info', title: 'Aucune réponse', description: 'Envoie la requête d’abord, puis relance le scan.' });
       return;
+    }
+    if (isSensitive && activeEnvName) {
+      useNotificationStore.getState().addToast({
+        variant: isProd ? 'warning' : 'info',
+        title: isProd ? `Scanning ${activeEnvName}` : `Environment: ${activeEnvName}`,
+        description: isProd ? 'Heads-up: you are on Production — passive scan is read-only, but follow-up active tests will hit live.' : 'Passive scan is read-only.',
+      });
     }
     setScanning(true);
     window.setTimeout(() => {
@@ -299,6 +331,21 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
         });
       }
     }, 180);
+  };
+
+  const handleScan = () => {
+    doPassiveScan();
+  };
+
+  const handleBolaClick = () => {
+    if (isProd) {
+      setConfirmBolaOpen(true);
+      return;
+    }
+    if (isSensitive && activeEnvName) {
+      useNotificationStore.getState().addToast({ variant: 'warning', title: `Testing against ${activeEnvName}`, description: 'BOLA will send real requests to this environment.' });
+    }
+    setBolaOpen(true);
   };
 
   const handleOpenFull = () => {
@@ -338,6 +385,24 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
         </div>
       </div>
 
+      {isProd && (
+        <div className="mb-3 flex items-start gap-2 rounded p-2.5 text-xs" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#FCA5A5' }}>
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <div>
+            <span className="font-semibold">Production — {activeEnvName}</span>
+            <span className="ml-1 text-[#8F909E]">Passive scan is read-only, but </span>
+            <span className="font-semibold text-[#FCA5A5]">BOLA will send real requests</span>
+            <span className="text-[#8F909E]"> to live API.</span>
+          </div>
+        </div>
+      )}
+      {!isProd && isSensitive && activeEnvName && (
+        <div className="mb-3 flex items-center gap-2 rounded px-2.5 py-2 text-xs" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#FCD34D' }}>
+          <AlertTriangle size={12} className="shrink-0" />
+          <span>Environment <strong>{activeEnvName}</strong> — not Local.</span>
+        </div>
+      )}
+
       {/* Findings list */}
       <div className="min-h-0 flex-1 overflow-auto">
         {findings.length === 0 ? (
@@ -369,7 +434,7 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
         <Button variant="secondary" size="sm" onClick={handleScan} disabled={scanning}>
           <Search size={14} /> {scanning ? 'Scanning…' : 'Run passive scan'}
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => setBolaOpen(true)}>
+        <Button variant="secondary" size="sm" onClick={handleBolaClick} title={isProd ? `Will test against ${activeEnvName} — confirmation required` : undefined}>
           <Scale size={14} /> Test authorization (BOLA)
         </Button>
         <Button variant="ghost" size="sm" onClick={handleOpenFull} className="ml-auto">
@@ -378,6 +443,31 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
       </div>
 
       <AuthMatrixModal open={bolaOpen} onClose={() => setBolaOpen(false)} request={request} />
+
+      <Modal
+        open={confirmBolaOpen}
+        onClose={() => setConfirmBolaOpen(false)}
+        title={`Test BOLA against ${activeEnvName}?`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmBolaOpen(false)}>Cancel</Button>
+            <Button variant="danger" onClick={() => { setConfirmBolaOpen(false); setBolaOpen(true); }}>
+              Continue — hit {activeEnvName}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 rounded p-3" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#FCA5A5' }}>
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">This will send real requests to <span className="underline">{activeEnvName}</span></p>
+              <p className="text-xs leading-relaxed text-[#8F909E]">BOLA/IDOR test fires two live requests with different identities and compares responses. Only run against production if you have explicit permission.</p>
+            </div>
+          </div>
+          <p className="text-xs text-[#8F909E]">Tip: switch to <span className="text-[#E2E8F0]">Local</span> for safe testing.</p>
+        </div>
+      </Modal>
     </div>
   );
 }

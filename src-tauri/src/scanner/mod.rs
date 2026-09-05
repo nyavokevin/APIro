@@ -1,7 +1,10 @@
 pub mod detector;
+pub mod diff;
 pub mod generator;
 pub mod models;
+pub mod openapi_export;
 pub mod parsers;
+pub mod watch;
 #[cfg(test)]
 mod tests;
 
@@ -20,7 +23,13 @@ pub fn scanner_scan_routes(
     options: Option<SourceScanOptions>,
 ) -> Result<SourceScanResult, String> {
     let opts = options.unwrap_or_default();
-    let detection = detector::detect_framework(&project_path).map_err(|e| e.to_string())?;
+    let mut detection = detector::detect_framework(&project_path).map_err(|e| e.to_string())?;
+
+    // Override framework if caller forced it (Phase 4)
+    if let Some(forced) = opts.forced_framework.clone() {
+        detection.framework = forced;
+        detection.confidence = 1.0;
+    }
 
     // Choose parser based on framework, fallback to language
     let parser = select_parser(&detection);
@@ -29,7 +38,7 @@ pub fn scanner_scan_routes(
     let files_to_scan: Vec<String> = detection.route_files.into_iter().take(max_files).collect();
 
     let mut all_routes = Vec::new();
-    let mut warnings = Vec::new();
+    let mut warnings: Vec<ScanWarning> = Vec::new();
 
     for file_path in &files_to_scan {
         // Skip test files if not included
@@ -41,7 +50,7 @@ pub fn scanner_scan_routes(
                 let routes = parser.parse(file_path, &content);
                 all_routes.extend(routes);
             }
-            Err(e) => warnings.push(format!("Could not read {}: {}", file_path, e)),
+            Err(e) => warnings.push(ScanWarning { severity: "warn".to_string(), file: Some(file_path.clone()), message: format!("Could not read: {}", e) }),
         }
     }
 
@@ -55,7 +64,7 @@ pub fn scanner_scan_routes(
             }
         }
         if !all_routes.is_empty() {
-            warnings.push("Used generic parser as fallback".to_string());
+            warnings.push(ScanWarning { severity: "info".to_string(), file: None, message: "Used generic parser as fallback".to_string() });
         }
     }
 
@@ -63,15 +72,18 @@ pub fn scanner_scan_routes(
     let total_files = files_to_scan.len();
     let total_routes = unique.len();
 
-    Ok(SourceScanResult {
-        framework: detection.framework,
-        language: detection.language,
+    let result = SourceScanResult {
+        framework: detection.framework.clone(),
+        language: detection.language.clone(),
         confidence: detection.confidence,
         total_files,
         total_routes,
         routes: unique,
         warnings,
-    })
+    };
+    // Persist to history (best-effort, never fail scan)
+    let _ = diff::save_scan_history(&project_path, &result);
+    Ok(result)
 }
 
 #[tauri::command]

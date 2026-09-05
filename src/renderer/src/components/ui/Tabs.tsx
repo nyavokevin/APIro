@@ -25,7 +25,13 @@ export function Tabs({ value, onValueChange, children, className }: TabsProps) {
 
 export function TabsList({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('flex', className)} style={{ borderBottom: '1px solid #262626' }}>{children}</div>
+    <div
+      className={cn('flex items-stretch gap-0 overflow-x-auto scrollbar-thin', className)}
+      style={{ borderBottom: '1px solid #232329', background: '#070709' }}
+      role="tablist"
+    >
+      {children}
+    </div>
   );
 }
 
@@ -36,18 +42,32 @@ export function TabsTrigger({ value, children }: { value: string; children: Reac
   return (
     <button
       onClick={() => ctx.setValue(value)}
+      role="tab"
+      aria-selected={active}
       className={cn(
-        'relative -mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors duration-150'
+        'relative -mb-px inline-flex shrink-0 items-center justify-center border-b-2 px-4 py-3 text-[13px] font-medium transition-all duration-200 hover:text-[#E6E8F0] active:scale-[0.98]'
       )}
       style={{
-        borderBottom: active ? '2px solid #8B5CF6' : '2px solid transparent',
-        color: active ? '#E2E8F0' : '#8F909E',
+        borderBottomColor: active ? '#8B5CF6' : 'transparent',
+        color: active ? '#E6E8F0' : '#9FA3B5',
+        background: active ? 'rgba(139,92,246,0.08)' : 'transparent',
+        fontWeight: active ? 600 : 450,
+        letterSpacing: '-0.01em',
         borderRadius: '0px',
-        paddingLeft: '16px',
-        paddingRight: '16px',
+        transitionTimingFunction: 'cubic-bezier(0.16,1,0.3,1)',
       }}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#E2E8F0'; }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = '#8F909E'; }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.color = '#E6E8F0';
+          e.currentTarget.style.background = '#121215';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.color = '#9FA3B5';
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}
     >
       {children}
     </button>

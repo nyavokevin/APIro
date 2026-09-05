@@ -156,6 +156,14 @@ pub struct ScannedRoute {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ScanWarning {
+    pub severity: String,
+    pub file: Option<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceScanResult {
     pub framework: BackendFramework,
     pub language: ScannerLanguage,
@@ -163,7 +171,7 @@ pub struct SourceScanResult {
     pub total_files: usize,
     pub total_routes: usize,
     pub routes: Vec<ScannedRoute>,
-    pub warnings: Vec<String>,
+    pub warnings: Vec<ScanWarning>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -175,6 +183,8 @@ pub struct SourceScanOptions {
     pub include_tests: Option<bool>,
     #[serde(default)]
     pub max_files: Option<usize>,
+    #[serde(default)]
+    pub forced_framework: Option<BackendFramework>,
 }
 
 impl SourceScanResult {

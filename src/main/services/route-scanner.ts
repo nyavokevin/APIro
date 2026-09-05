@@ -18,7 +18,21 @@ const GRAPHQL_INTROSPECTION = `query IntrospectionQuery {
 }`;
 
 function hostUrl(baseUrl: string): string {
-  return baseUrl.replace(/\/$/, '');
+  const trimmed = baseUrl.trim();
+  try {
+    const u = new URL(trimmed);
+    let pathname = u.pathname.replace(/\/$/, '');
+    if (pathname.toLowerCase().endsWith('/graphql')) {
+      pathname = pathname.slice(0, -'/graphql'.length);
+    }
+    const origin = u.origin;
+    if (!pathname || pathname === '/') return origin;
+    return origin + pathname.replace(/\/$/, '');
+  } catch {
+    let url = trimmed.replace(/\/$/, '');
+    if (url.toLowerCase().endsWith('/graphql')) url = url.slice(0, -'/graphql'.length);
+    return url.replace(/\/$/, '');
+  }
 }
 
 interface OpenApiPathItem {
@@ -93,7 +107,7 @@ async function trySpecs(baseUrl: string): Promise<ScanResult | null> {
       ) {
         const isOpenApi = !!data.openapi;
         return {
-          url: baseUrl,
+          url: base,
           detectedSpec: isOpenApi ? 'openapi' : 'swagger',
           endpoints: parseOpenAPI(data),
           raw: data,
@@ -145,10 +159,10 @@ export async function scanBackend(baseUrl: string): Promise<ScanResult> {
 
   const graphqlEndpoints = await tryGraphQL(baseUrl);
   if (graphqlEndpoints.length > 0) {
-    return { url: baseUrl, detectedSpec: 'graphql', endpoints: graphqlEndpoints };
+    return { url: hostUrl(baseUrl), detectedSpec: 'graphql', endpoints: graphqlEndpoints };
   }
 
-  return { url: baseUrl, detectedSpec: 'none', endpoints: [] };
+  return { url: hostUrl(baseUrl), detectedSpec: 'none', endpoints: [] };
 }
 
 export { parseOpenAPI };

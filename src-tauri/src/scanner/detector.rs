@@ -350,6 +350,69 @@ fn detect_rust_framework(p: &Path) -> Result<BackendFramework, ScannerError> {
     Ok(BackendFramework::Unknown)
 }
 
+fn load_apiforgeignore_patterns(project_path: &str) -> Vec<String> {
+    let ignore_path = Path::new(project_path).join(".apiforgeignore");
+    let content = match fs::read_to_string(&ignore_path) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    content
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(|s| s.to_string())
+        .collect()
+}
+
+fn is_ignored_by_apiforgeignore(file_path: &str, patterns: &[String], project_path: &str) -> bool {
+    if patterns.is_empty() {
+        return false;
+    }
+    // Compute relative path from project_path
+    let rel = if file_path.starts_with(project_path) {
+        let rel = &file_path[project_path.len()..];
+        rel.trim_start_matches(|c| c == '/' || c == '\\')
+    } else {
+        file_path
+    };
+    let rel = rel.replace('\\', "/");
+    for pat in patterns {
+        let pat = pat.trim();
+        if pat.is_empty() {
+            continue;
+        }
+        // Directory pattern e.g. "legacy/" should match "legacy/**"
+        let effective = if pat.ends_with('/') {
+            format!("{}**", pat)
+        } else {
+            pat.to_string()
+        };
+        // Try glob pattern matching
+        if let Ok(glob_pat) = glob::Pattern::new(&effective) {
+            if glob_pat.matches(&rel) || glob_pat.matches_path(Path::new(&rel)) {
+                return true;
+            }
+            // Also try matching with **/ prefix for patterns without slash
+            if !effective.contains('/') {
+                if let Ok(p2) = glob::Pattern::new(&format!("**/{}", effective)) {
+                    if p2.matches(&rel) {
+                        return true;
+                    }
+                }
+            }
+        }
+        // Fallback substring check for simple cases
+        if rel.contains(pat.trim_start_matches("**/").trim_start_matches("*/").trim()) && !pat.contains('*') {
+            // Only for non-glob simple patterns
+            let simple = pat.trim_matches('/').trim_matches('*');
+            if !simple.is_empty() && (rel == simple || rel.starts_with(&format!("{}/", simple)) || rel.contains(&format!("/{}", simple))) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn find_route_files(project_path: &str, detection: &FrameworkDetection) -> Result<Vec<String>, ScannerError> {
     let patterns: Vec<&str> = match detection.framework {
         BackendFramework::Express | BackendFramework::Fastify | BackendFramework::NestJS | BackendFramework::Hapi | BackendFramework::Koa => {
@@ -391,6 +454,7 @@ fn find_route_files(project_path: &str, detection: &FrameworkDetection) -> Resul
         }
     };
 
+    let ignore_patterns = load_apiforgeignore_patterns(project_path);
     let mut files = Vec::new();
     for pat in patterns {
         let full = format!("{}/{}", project_path, pat);
@@ -400,6 +464,9 @@ fn find_route_files(project_path: &str, detection: &FrameworkDetection) -> Resul
                     // Filter out unwanted dirs
                     let s = p.to_string_lossy().to_string().replace('\\', "/");
                     if s.contains("node_modules/") || s.contains("vendor/") || s.contains(".git/") || s.contains("dist/") || s.contains("build/") || s.contains("target/") || s.contains(".next/") {
+                        continue;
+                    }
+                    if is_ignored_by_apiforgeignore(&s, &ignore_patterns, project_path) {
                         continue;
                     }
                     files.push(p.to_string_lossy().to_string());
@@ -419,6 +486,9 @@ fn find_route_files(project_path: &str, detection: &FrameworkDetection) -> Resul
             let p = entry.path();
             if p.is_file() {
                 let s = p.to_string_lossy().to_string().replace('\\', "/");
+                if is_ignored_by_apiforgeignore(&s, &ignore_patterns, project_path) {
+                    continue;
+                }
                 if (s.contains("route") || s.contains("controller") || s.contains("handler")) && !s.contains("node_modules") {
                     files.push(s);
                 }

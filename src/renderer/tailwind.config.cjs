@@ -5,24 +5,24 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // APIro Backgrounds
-        'api-bg-base': '#000000',
-        'api-bg-sidebar': '#0A0A0A',
-        'api-bg-card': '#121212',
-        'api-bg-input': '#121212',
-        'api-bg-header': '#000000',
-        'api-bg-hover': '#1A1A1A',
-        'api-bg-dropdown': '#121212',
+        // APIro Backgrounds — softened OLED
+        'api-bg-base': '#070709',
+        'api-bg-sidebar': '#0E0E10',
+        'api-bg-card': '#121215',
+        'api-bg-input': '#121215',
+        'api-bg-header': '#070709',
+        'api-bg-hover': '#19191E',
+        'api-bg-dropdown': '#121215',
         // Text
-        'api-text-primary': '#E2E8F0',
-        'api-text-secondary': '#8F909E',
+        'api-text-primary': '#E6E8F0',
+        'api-text-secondary': '#9FA3B5',
         'api-text-white': '#FFFFFF',
         'api-text-green': '#10B981',
         'api-text-slate': '#94A3B8',
         'api-text-violet': '#8B5CF6',
         // Borders
-        'api-border-default': '#262626',
-        'api-border-hover': '#404040',
+        'api-border-default': '#232329',
+        'api-border-hover': '#2E2E36',
         'api-border-selected': '#8B5CF6',
         // Accents
         'api-violet': '#8B5CF6',
@@ -60,7 +60,7 @@ module.exports = {
         'method-delete': 'var(--method-delete)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Geist', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       fontSize: {
@@ -86,9 +86,10 @@ module.exports = {
       borderRadius: {
         DEFAULT: '0px',
         sm: '0px',
-        md: '0px',
-        lg: '0px',
-        xl: '0px',
+        md: '6px',
+        lg: '8px',
+        xl: '12px',
+        '2xl': '16px',
         full: '9999px',
       },
       width: {

@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock3, Beaker } from 'lucide-react';
 import type { TestResult } from '@shared/types/request';
 import { useRequestStore } from '../../stores/requestStore';
 
@@ -12,8 +12,14 @@ export function TestResults({ results }: TestResultsProps) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">
-        No tests have run yet. Add tests in the Tests tab and send the request.
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-8 py-12 text-center animate-fadeUp">
+        <div className="flex h-12 w-12 items-center justify-center bg-[#121215]" style={{ border: '1px solid #232329' }}>
+          <Beaker size={20} className="text-[#7A7F93]" strokeWidth={1.5} />
+        </div>
+        <p className="text-sm font-semibold tracking-tight text-[#E6E8F0]">No tests have run yet</p>
+        <p className="max-w-[34ch] text-xs leading-relaxed text-[#7A7F93]">
+          Add assertions in the <span className="font-medium text-[#E6E8F0]">Tests</span> tab and send the request. Results and durations appear here.
+        </p>
       </div>
     );
   }
@@ -22,31 +28,72 @@ export function TestResults({ results }: TestResultsProps) {
   const failed = data.length - passed;
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-3 border-b border-[var(--border)] px-3 py-2 text-sm">
-        <span className="font-semibold text-[var(--text-primary)]">Test Results</span>
-        <span className="text-success">{passed} passed</span>
-        <span className="text-danger">{failed} failed</span>
-        <span className="text-[var(--text-secondary)]">({data.length} total)</span>
+    <div className="flex h-full flex-col bg-[#070709]">
+      <div
+        className="flex flex-wrap items-center gap-2 px-4 py-2.5 shrink-0"
+        style={{ background: '#0E0E10', borderBottom: '1px solid #232329' }}
+      >
+        <span className="flex h-7 w-7 items-center justify-center bg-[rgba(139,92,246,0.12)] text-[#8B5CF6]" style={{ border: '1px solid rgba(139,92,246,0.22)' }}>
+          <Beaker size={14} strokeWidth={1.8} />
+        </span>
+        <span className="text-sm font-semibold tracking-tight text-[#E6E8F0]">Test Results</span>
+        <div className="ml-2 flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold tabular-nums" style={{ background: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.20)' }}>
+            <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" /> {passed} passed
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold tabular-nums" style={{ background: failed ? 'rgba(239,68,68,0.12)' : 'rgba(113,118,138,0.08)', color: failed ? '#EF4444' : '#7A7F93', border: `1px solid ${failed ? 'rgba(239,68,68,0.20)' : '#232329'}` }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: failed ? '#EF4444' : '#7A7F93' }} /> {failed} failed
+          </span>
+        </div>
+        <span className="ml-auto text-xs tabular-nums text-[#7A7F93]">{data.length} total</span>
       </div>
-      <ul className="flex-1 space-y-1 overflow-auto p-3">
+      <ul className="flex-1 space-y-2 overflow-auto p-3">
         {data.map((t, i) => (
           <li
             key={i}
-            className="flex items-start gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-tertiary)] px-3 py-2"
+            className="group flex items-start gap-3 bg-[#121215] px-3 py-3 transition-all duration-200 hover:-translate-y-[1px] hover:border-[#2E2E36] hover:bg-[#16161A] active:scale-[0.995] animate-fadeUp"
+            style={{
+              border: `1px solid ${t.passed ? 'rgba(16,185,129,0.18)' : 'rgba(239,68,68,0.18)'}`,
+              borderLeft: `2px solid ${t.passed ? '#10B981' : '#EF4444'}`,
+              animationDelay: `${i * 28}ms`,
+            }}
           >
-            {t.passed ? (
-              <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-success" />
-            ) : (
-              <XCircle size={16} className="mt-0.5 shrink-0 text-danger" />
-            )}
-            <div className="min-w-0">
-              <p className="text-sm text-[var(--text-primary)]">{t.name}</p>
+            <span
+              className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center"
+              style={{
+                background: t.passed ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
+                border: `1px solid ${t.passed ? 'rgba(16,185,129,0.28)' : 'rgba(239,68,68,0.28)'}`,
+                color: t.passed ? '#10B981' : '#EF4444',
+              }}
+            >
+              {t.passed ? <CheckCircle2 size={13} strokeWidth={2} /> : <XCircle size={13} strokeWidth={2} />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate text-sm font-medium leading-tight text-[#E6E8F0]">{t.name}</p>
+                <span
+                  className={`inline-flex items-center px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${t.passed ? 'text-[#10B981]' : 'text-[#EF4444]'}`}
+                  style={{
+                    background: t.passed ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                    border: `1px solid ${t.passed ? 'rgba(16,185,129,0.22)' : 'rgba(239,68,68,0.22)'}`,
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {t.passed ? 'Pass' : 'Fail'}
+                </span>
+                {t.durationMs != null && (
+                  <span className="ml-auto inline-flex items-center gap-1 font-mono text-xs tabular-nums text-[#7A7F93]">
+                    <Clock3 size={11} /> {t.durationMs} ms
+                  </span>
+                )}
+              </div>
               {!t.passed && t.error && (
-                <p className="break-all font-mono text-xs text-danger">{t.error}</p>
+                <p className="mt-1.5 break-all rounded bg-[#070709] px-2 py-1.5 font-mono text-xs leading-relaxed text-[#EF4444]" style={{ border: '1px solid rgba(239,68,68,0.18)' }}>
+                  {t.error}
+                </p>
               )}
-              {t.durationMs != null && (
-                <p className="text-xs text-[var(--text-secondary)]">{t.durationMs} ms</p>
+              {t.passed && t.error && (
+                <p className="mt-1 break-all font-mono text-xs text-[#7A7F93]">{t.error}</p>
               )}
             </div>
           </li>
@@ -60,13 +107,18 @@ export function TestResultsBadge() {
   const data = useRequestStore((s) => s.testResults);
   if (!data || data.length === 0) return null;
   const failed = data.filter((t) => !t.passed).length;
+  const passed = data.length - failed;
   return (
     <span
-      className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
-        failed > 0 ? 'text-danger' : 'text-success'
-      }`}
-      >
-        {data.length - failed}/{data.length} tests
+      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-semibold tabular-nums"
+      style={{
+        background: failed ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
+        color: failed ? '#EF4444' : '#10B981',
+        border: `1px solid ${failed ? 'rgba(239,68,68,0.22)' : 'rgba(16,185,129,0.22)'}`,
+      }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: failed ? '#EF4444' : '#10B981' }} />
+      {passed}/{data.length} tests
     </span>
   );
 }

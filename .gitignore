@@ -46,3 +46,7 @@ Thumbs.db
 *.tgz
 .cache/
 .parcel-cache/
+
+agent/
+.claude/
+.agents/
