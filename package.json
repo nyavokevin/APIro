@@ -1,6 +1,6 @@
 {
   "name": "apiforge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "APIForge - Postman alternative with superpowers. Local-first, offline-capable API client and backend explorer.",
   "author": "APIForge Team",
   "license": "MIT",

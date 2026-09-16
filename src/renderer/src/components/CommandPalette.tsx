@@ -8,7 +8,6 @@ import {
   Server,
   Settings as SettingsIcon,
   FileDown,
-  Network,
   LayoutDashboard,
   Code2,
   Folder,
@@ -150,11 +149,6 @@ export function CommandPalette() {
               icon={<Folder size={14} />}
               label="Open Collections"
               onSelect={() => run(() => setActivePage('collections'))}
-            />
-            <PaletteItem
-              icon={<Network size={14} />}
-              label="Open Connection Flow"
-              onSelect={() => run(() => setActivePage('flow'))}
             />
             <PaletteItem
               icon={<Clock size={14} />}

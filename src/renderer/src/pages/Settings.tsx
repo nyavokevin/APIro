@@ -65,8 +65,10 @@ export function Settings() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl p-6 bg-[#070709] min-h-full">
-      <h2 className="mb-6 flex items-center gap-2.5 text-lg font-semibold tracking-tight" style={{ color: '#E6E8F0', letterSpacing: '-0.02em' }}>
+    <div className="flex flex-1 min-h-0 flex-col bg-[#070709] overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-auto overscroll-contain">
+        <div className="w-full p-6">
+          <h2 className="mb-6 flex items-center gap-2.5 text-lg font-semibold tracking-tight" style={{ color: '#E6E8F0', letterSpacing: '-0.02em' }}>
         <span className="flex h-8 w-8 items-center justify-center bg-[#8B5CF6] text-white" style={{ boxShadow: '0 0 14px rgba(139,92,246,0.28)' }}>
           <SettingsIcon size={16} strokeWidth={1.9} />
         </span>
@@ -77,7 +79,7 @@ export function Settings() {
       </h2>
 
       <div className="grid gap-5">
-        <section className="max-w-[560px]">
+        <section className="w-full">
           <h3 className="mb-2 text-sm font-semibold" style={{ color: '#E6E8F0', letterSpacing: '-0.01em' }}>Appearance</h3>
           <div className="bg-[#121215] p-4" style={{ border: '1px solid #232329', borderRadius: '0px', boxShadow: '0 1px 6px rgba(0,0,0,0.18)' }}>
             <p className="mb-2.5 text-xs" style={{ color: '#7A7F93' }}>Theme — APIro is dark-native only (OLED charcoal, Geist Sans)</p>
@@ -100,7 +102,7 @@ export function Settings() {
           </div>
         </section>
 
-        <section className="max-w-[560px]">
+        <section className="w-full">
           <h3 className="mb-2 text-sm font-semibold" style={{ color: '#E6E8F0' }}>Fonts</h3>
           <div className="bg-[#121215] p-4 space-y-3" style={{ border: '1px solid #232329', borderRadius: '0px', boxShadow: '0 1px 6px rgba(0,0,0,0.18)' }}>
             <label className="flex items-center justify-between text-sm" style={{ color: '#E6E8F0' }}>
@@ -136,7 +138,7 @@ export function Settings() {
           </div>
         </section>
 
-        <section className="max-w-[560px]">
+        <section className="w-full">
           <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold" style={{ color: '#E6E8F0' }}>
             <Sparkles size={14} className="text-[#8B5CF6]" /> AI · OpenRouter <span className="text-xs font-normal px-1.5 py-0.5 rounded-full bg-[rgba(139,92,246,0.10)] border border-[rgba(139,92,246,0.18)] text-[#8B5CF6]">optional</span>
           </h3>
@@ -222,7 +224,7 @@ export function Settings() {
           </div>
         </section>
 
-        <section className="max-w-[560px]">
+        <section className="w-full">
           <div className="bg-[#121215] p-4 flex gap-3" style={{ border:'1px solid #232329', borderLeft:'2px solid #10B981', borderRadius:'0px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
             <span className="hidden sm:flex h-8 w-8 items-center justify-center bg-[rgba(16,185,129,0.10)] text-[#10B981] border border-[rgba(16,185,129,0.18)] shrink-0">
               <Shield size={14} />
@@ -235,7 +237,7 @@ export function Settings() {
           </div>
         </section>
 
-        <section className="max-w-[560px]">
+        <section className="w-full">
           <h3 className="mb-2 text-sm font-semibold" style={{ color: '#E6E8F0' }}>About</h3>
           <div className="bg-[#121215] p-4 text-sm" style={{ border: '1px solid #232329', borderRadius: '0px', color: '#9FA3B5', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
             <p style={{ color: '#E6E8F0', fontWeight: 600, letterSpacing: '-0.02em' }}>APIro 0.1.0</p>
@@ -251,6 +253,8 @@ export function Settings() {
             </div>
           </div>
         </section>
+      </div>
+        </div>
       </div>
     </div>
   );

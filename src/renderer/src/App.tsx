@@ -4,7 +4,6 @@ import { MainLayout } from './components/layout/MainLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Workspace } from './pages/Workspace';
 import { Collections } from './pages/Collections';
-import { Flow } from './pages/Flow';
 import { Environments } from './pages/Environments';
 import { RouteScanner } from './pages/RouteScanner';
 import { MockServers } from './pages/MockServers';
@@ -86,7 +85,6 @@ export default function App() {
         {page === 'dashboard' && <Dashboard />}
         {page === 'workspace' && <Workspace />}
         {page === 'collections' && <Collections />}
-        {page === 'flow' && <Flow />}
         {page === 'history' && <History />}
         {page === 'environments' && <Environments />}
         {page === 'scanner' && <RouteScanner />}
