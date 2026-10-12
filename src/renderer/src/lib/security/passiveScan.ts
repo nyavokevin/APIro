@@ -199,6 +199,29 @@ const RULES: Rule[] = [
     },
   },
   {
+    id: 'SEC-HTTP-PLAINTEXT',
+    title: 'Request sent over plaintext HTTP',
+    severity: 'high',
+    category: 'transport',
+    remediation: 'Serve the API over HTTPS only and redirect HTTP→HTTPS; add HSTS.',
+    check: (req, _res, _h) => {
+      if (/^http:\/\//i.test(req.url)) return { evidence: req.url, description: 'Traffic is unencrypted — vulnerable to man-in-the-middle interception and tampering.' };
+      return null;
+    },
+  },
+  {
+    id: 'SEC-JWT-IN-URL',
+    title: 'JWT / bearer token exposed in URL',
+    severity: 'high',
+    category: 'auth',
+    remediation: 'Send tokens in the Authorization header, not the URL. If unavoidable, set Cache-Control: no-store and use short-lived tokens.',
+    check: (req, _res, _h) => {
+      const m = req.url.match(/eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/);
+      if (m) return { evidence: m[0].slice(0, 48) + '…', description: 'A JWT appears in the URL. Tokens in URLs leak through logs, browser history and proxies.' };
+      return null;
+    },
+  },
+  {
     id: 'SEC-IDOR-HINT',
     title: 'URL contains object identifier — test for BOLA',
     severity: 'info',

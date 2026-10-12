@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Shield, Search, Scale, ExternalLink, X, AlertTriangle, Info, ChevronDown, ChevronRight, Copy } from 'lucide-react';
-import type { RequestData, ResponseData } from '@shared/types/request';
-import { useSecurityStore, type SecurityFinding, type SecuritySeverity } from '../../stores/securityStore';
+import { Shield, Search, Scale, ExternalLink, X, AlertTriangle, Info, ChevronDown, ChevronRight, Copy, KeyRound, Syringe, Gauge, Fingerprint, PackagePlus } from 'lucide-react';
+import type { RequestData, ResponseData, EnvironmentVariable } from '@shared/types/request';
+import { useSecurityStore, type SecurityFinding, type SecuritySeverity, type ScanType } from '../../stores/securityStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { useEnvironmentStore } from '../../stores/environmentStore';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
+import { runAuthTest, runInjectionTest, runRateLimitTest, runJwtTest, runMassAssignmentTest, runBolaTest, bolaFinding } from '../../lib/security/activeScan';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
@@ -73,30 +75,18 @@ function AuthMatrixModal({
     }
     setLoading(true);
     try {
-      // Build fetch headers from request
-      const buildHeaders = (token: string) => {
-        const h: Record<string, string> = {};
-        for (const kv of request.headers) if (kv.enabled && kv.key) h[kv.key] = kv.value;
-        if (token) h['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-        return h;
-      };
-      // Use window.fetch directly for BOLA repro — compare two identities side-by-side
-      const doFetch = async (token: string) => {
-        try {
-          const res = await fetch(url, { method, headers: buildHeaders(token) });
-          const text = await res.text();
-          return { status: res.status, body: text.slice(0, 2000) };
-        } catch (e) {
-          return { status: 0, body: e instanceof Error ? e.message : String(e) };
-        }
-      };
-      const [a, b] = await Promise.all([doFetch(tokenA), doFetch(tokenB)]);
-      setResults({ a, b });
-      const bolaSuspected = a.status < 400 && b.status < 400 && a.body === b.body && a.status !== 401 && a.status !== 403;
+      // Go through the real request engine so URL variables, body and every
+      // auth type are honored — not just a raw fetch of the literal URL.
+      const vars = useWorkspaceStore.getState().variables();
+      const outcome = await runBolaTest(request, vars, tokenA, tokenB);
+      setResults({ a: outcome.a, b: outcome.b });
+      if (outcome.suspected) {
+        useSecurityStore.getState().ingestActiveFindings('bola', request, [bolaFinding(request, outcome)]);
+      }
       useNotificationStore.getState().addToast({
-        variant: bolaSuspected ? 'warning' : 'info',
-        title: bolaSuspected ? 'BOLA suspecté — même réponse pour deux identités' : 'Test BOLA exécuté',
-        description: `Identity A: ${a.status} · Identity B: ${b.status}`,
+        variant: outcome.suspected ? 'warning' : 'info',
+        title: outcome.suspected ? 'BOLA suspecté — même réponse pour deux identités' : 'Test BOLA exécuté',
+        description: `Identity A: ${outcome.a.status} · Identity B: ${outcome.b.status}`,
       });
     } finally {
       setLoading(false);
@@ -298,12 +288,16 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
   const dismissFinding = useSecurityStore((s) => s.dismissFinding);
   const setSelectedRequestId = useSecurityStore((s) => s.setSelectedRequestId);
   const setActivePage = useUiStore((s) => s.setActivePage);
+  const ingestActiveFindings = useSecurityStore((s) => s.ingestActiveFindings);
   const [bolaOpen, setBolaOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [activeBusy, setActiveBusy] = useState<string | null>(null);
   const activeEnvName = useEnvironmentStore((s) => s.environments.find((e) => e.id === s.activeId)?.name ?? null);
   const isProd = useMemo(() => isProdEnv(activeEnvName), [activeEnvName]);
   const isSensitive = useMemo(() => isSensitiveEnv(activeEnvName), [activeEnvName]);
   const [confirmBolaOpen, setConfirmBolaOpen] = useState(false);
+  // A pending active test awaiting production confirmation.
+  const [pendingActive, setPendingActive] = useState<null | { label: string; run: () => void }>(null);
 
   const doPassiveScan = () => {
     if (!response) {
@@ -346,6 +340,44 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
       useNotificationStore.getState().addToast({ variant: 'warning', title: `Testing against ${activeEnvName}`, description: 'BOLA will send real requests to this environment.' });
     }
     setBolaOpen(true);
+  };
+
+  // Generic runner for active tests that send real requests (auth, injection, rate-limit).
+  const runActive = (
+    label: string,
+    type: ScanType,
+    fn: (req: RequestData, vars: EnvironmentVariable[]) => Promise<SecurityFinding[]>
+  ) => {
+    const exec = async () => {
+      if (!request.url?.trim()) {
+        useNotificationStore.getState().addToast({ variant: 'warning', title: 'Missing URL', description: 'Enter a URL before testing.' });
+        return;
+      }
+      setActiveBusy(label);
+      try {
+        const vars = useWorkspaceStore.getState().variables();
+        const found = await fn(request, vars);
+        ingestActiveFindings(type, request, found);
+        const real = found.filter((f) => f.severity !== 'info');
+        useNotificationStore.getState().addToast({
+          variant: real.some((f) => f.severity === 'critical' || f.severity === 'high') ? 'warning' : real.length ? 'info' : 'success',
+          title: real.length ? `${label}: ${real.length} finding(s)` : `${label}: clean`,
+          description: (real[0] ?? found[0])?.title ?? 'No issues found.',
+        });
+      } catch (e) {
+        useNotificationStore.getState().addToast({ variant: 'error', title: `${label} failed`, description: e instanceof Error ? e.message : String(e) });
+      } finally {
+        setActiveBusy(null);
+      }
+    };
+    if (isProd) {
+      setPendingActive({ label, run: exec });
+      return;
+    }
+    if (isSensitive && activeEnvName) {
+      useNotificationStore.getState().addToast({ variant: 'warning', title: `Testing against ${activeEnvName}`, description: `${label} will send real requests to this environment.` });
+    }
+    void exec();
   };
 
   const handleOpenFull = () => {
@@ -429,13 +461,31 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
         )}
       </div>
 
-      {/* Actions */}
-      <div className="mt-3 flex flex-wrap items-center gap-2" style={{ borderTop: '1px solid #262626', paddingTop: '12px' }}>
+      {/* Actions — pinned footer so the test buttons are always visible without scrolling */}
+      <div
+        className="sticky bottom-0 z-10 -mx-3 -mb-3 mt-3 flex flex-wrap items-center gap-2 px-3 pb-3"
+        style={{ borderTop: '1px solid #262626', paddingTop: '12px', background: '#070709', boxShadow: '0 -10px 18px rgba(7,7,9,0.92)' }}
+      >
         <Button variant="secondary" size="sm" onClick={handleScan} disabled={scanning}>
           <Search size={14} /> {scanning ? 'Scanning…' : 'Run passive scan'}
         </Button>
         <Button variant="secondary" size="sm" onClick={handleBolaClick} title={isProd ? `Will test against ${activeEnvName} — confirmation required` : undefined}>
           <Scale size={14} /> Test authorization (BOLA)
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => runActive('Auth test', 'auth', runAuthTest)} disabled={!!activeBusy} title="Replay with no/invalid credentials to test auth enforcement">
+          <KeyRound size={14} /> {activeBusy === 'Auth test' ? 'Testing…' : 'Auth test'}
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => runActive('Injection', 'injection', runInjectionTest)} disabled={!!activeBusy} title="Fuzz query params with SQLi/XSS payloads">
+          <Syringe size={14} /> {activeBusy === 'Injection' ? 'Fuzzing…' : 'Injection'}
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => runActive('Rate limit', 'rate-limit', runRateLimitTest)} disabled={!!activeBusy} title="Send a burst to check for throttling">
+          <Gauge size={14} /> {activeBusy === 'Rate limit' ? 'Bursting…' : 'Rate limit'}
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => runActive('JWT', 'jwt', runJwtTest)} disabled={!!activeBusy} title="Test alg:none and weak-secret JWT forgery">
+          <Fingerprint size={14} /> {activeBusy === 'JWT' ? 'Forging…' : 'JWT'}
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => runActive('Mass assignment', 'mass-assignment', runMassAssignmentTest)} disabled={!!activeBusy} title="Inject privileged fields into the JSON body">
+          <PackagePlus size={14} /> {activeBusy === 'Mass assignment' ? 'Injecting…' : 'Mass assign'}
         </Button>
         <Button variant="ghost" size="sm" onClick={handleOpenFull} className="ml-auto">
           <ExternalLink size={14} /> Open full Security page
@@ -463,6 +513,38 @@ export function SecurityTab({ request, response, requestId }: SecurityTabProps) 
             <div className="space-y-1">
               <p className="text-sm font-semibold">This will send real requests to <span className="underline">{activeEnvName}</span></p>
               <p className="text-xs leading-relaxed text-[#8F909E]">BOLA/IDOR test fires two live requests with different identities and compares responses. Only run against production if you have explicit permission.</p>
+            </div>
+          </div>
+          <p className="text-xs text-[#8F909E]">Tip: switch to <span className="text-[#E2E8F0]">Local</span> for safe testing.</p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!pendingActive}
+        onClose={() => setPendingActive(null)}
+        title={`Run ${pendingActive?.label ?? 'test'} against ${activeEnvName}?`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPendingActive(null)}>Cancel</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                const p = pendingActive;
+                setPendingActive(null);
+                p?.run();
+              }}
+            >
+              Continue — hit {activeEnvName}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 rounded p-3" style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#FCA5A5' }}>
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">This will send real requests to <span className="underline">{activeEnvName}</span></p>
+              <p className="text-xs leading-relaxed text-[#8F909E]">Active security tests fire live requests (including injection payloads and bursts). Only run against production with explicit permission.</p>
             </div>
           </div>
           <p className="text-xs text-[#8F909E]">Tip: switch to <span className="text-[#E2E8F0]">Local</span> for safe testing.</p>

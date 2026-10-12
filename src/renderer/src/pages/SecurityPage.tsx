@@ -1,12 +1,29 @@
 import { useMemo, useState } from 'react';
-import { Shield, Search, Trash2, Filter, ArrowLeft, ExternalLink, CheckCircle2, X, Clock, ShieldAlert, Zap } from 'lucide-react';
+import { Shield, Search, Trash2, Filter, ArrowLeft, ExternalLink, CheckCircle2, X, Clock, ShieldAlert, Zap, ShieldCheck, Loader2, AlertTriangle, FileDown } from 'lucide-react';
 import { useSecurityStore, type SecuritySeverity, type SecurityFinding, type FindingStatus } from '../stores/securityStore';
 import { useUiStore } from '../stores/uiStore';
 import { useRequestStore } from '../stores/requestStore';
+import { useWorkspaceStore } from '../stores/workspaceStore';
+import { useEnvironmentStore } from '../stores/environmentStore';
 import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { useNotificationStore } from '../stores/notificationStore';
 import { ScanHistoryPanel } from '../components/security/ScanHistoryPanel';
 import { FindingDetailDrawer } from '../components/security/FindingDetailDrawer';
+import { runAuthTest, runInjectionTest, runRateLimitTest, runJwtTest, runMassAssignmentTest } from '../lib/security/activeScan';
+import { buildReportModel, toReportHtml, toReportMarkdown } from '../lib/security/securityReport';
+
+function isProdEnv(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase().trim();
+  return n.includes('prod') || n.includes('live') || n === 'production';
+}
+function isSensitiveEnv(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase().trim();
+  if (n === 'local' || n === 'dev' || n === 'development') return false;
+  return true;
+}
 
 const SEVERITY_ORDER: Record<SecuritySeverity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 const SEVERITY_COLOR: Record<SecuritySeverity, string> = {
@@ -65,8 +82,17 @@ export function SecurityPage() {
   const updateFindingStatus = useSecurityStore((s) => s.updateFindingStatus);
   const clearAll = useSecurityStore((s) => s.clearAll);
   const runPassiveScanForRequest = useSecurityStore((s) => s.runPassiveScanForRequest);
+  const ingestActiveFindings = useSecurityStore((s) => s.ingestActiveFindings);
   const setActivePage = useUiStore((s) => s.setActivePage);
   const tabs = useRequestStore((s) => s.tabs);
+  const activeEnvName = useEnvironmentStore((s) => s.environments.find((e) => e.id === s.activeId)?.name ?? null);
+  const isProd = useMemo(() => isProdEnv(activeEnvName), [activeEnvName]);
+  const isSensitive = useMemo(() => isSensitiveEnv(activeEnvName), [activeEnvName]);
+
+  const [auditing, setAuditing] = useState(false);
+  const [auditStep, setAuditStep] = useState<{ done: number; total: number; label: string } | null>(null);
+  const [confirmAuditOpen, setConfirmAuditOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [severityFilter, setSeverityFilter] = useState<SecuritySeverity | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -133,6 +159,92 @@ export function SecurityPage() {
     useNotificationStore.getState().addToast({ variant: count ? 'warning' : 'success', title: count ? `${count} total findings` : 'No issues', description: 'Scanned all responses' });
   };
 
+  const real = (f: SecurityFinding) => f.severity !== 'info';
+
+  // Full audit: passive + every active test (auth, injection, rate-limit) across all open requests.
+  // Active tests send live requests, so this is gated behind confirmation on sensitive environments.
+  const runFullAudit = async () => {
+    const targets = tabs.filter((t) => t.request.url?.trim());
+    if (targets.length === 0) {
+      useNotificationStore.getState().addToast({ variant: 'warning', title: 'Nothing to audit', description: 'Open requests in Workspace first.' });
+      return;
+    }
+    setAuditing(true);
+    const vars = useWorkspaceStore.getState().variables();
+    const total = targets.length * 6; // passive + auth + injection + jwt + mass-assignment + rate-limit
+    let done = 0;
+    let findingsCount = 0;
+    const bump = (label: string) => {
+      done += 1;
+      setAuditStep({ done, total, label });
+    };
+    try {
+      for (const t of targets) {
+        const label = `${t.request.method} ${t.request.url}`;
+        // 1. Passive (read-only) — only if a response is captured
+        if (t.response) findingsCount += runPassiveScanForRequest(t.request, t.response).filter(real).length;
+        bump(`Passive · ${label}`);
+        // 2. Auth enforcement
+        try { findingsCount += ingestActiveFindings('auth', t.request, await runAuthTest(t.request, vars)).filter(real).length; } catch { /* keep going */ }
+        bump(`Auth · ${label}`);
+        // 3. Injection
+        try { findingsCount += ingestActiveFindings('injection', t.request, await runInjectionTest(t.request, vars)).filter(real).length; } catch { /* keep going */ }
+        bump(`Injection · ${label}`);
+        // 4. JWT attacks
+        try { findingsCount += ingestActiveFindings('jwt', t.request, await runJwtTest(t.request, vars)).filter(real).length; } catch { /* keep going */ }
+        bump(`JWT · ${label}`);
+        // 5. Mass assignment
+        try { findingsCount += ingestActiveFindings('mass-assignment', t.request, await runMassAssignmentTest(t.request, vars)).filter(real).length; } catch { /* keep going */ }
+        bump(`Mass assignment · ${label}`);
+        // 6. Rate limiting
+        try { findingsCount += ingestActiveFindings('rate-limit', t.request, await runRateLimitTest(t.request, vars)).filter(real).length; } catch { /* keep going */ }
+        bump(`Rate limit · ${label}`);
+      }
+      setStatusFilter('open');
+      useNotificationStore.getState().addToast({
+        variant: findingsCount ? 'warning' : 'success',
+        title: findingsCount ? `Audit complete — ${findingsCount} issue(s)` : 'Audit complete — clean',
+        description: `${targets.length} request(s) · passive + auth + injection + jwt + mass-assignment + rate-limit`,
+      });
+    } finally {
+      setAuditing(false);
+      setAuditStep(null);
+    }
+  };
+
+  const handleFullAuditClick = () => {
+    if (auditing) return;
+    if (isSensitive) {
+      setConfirmAuditOpen(true);
+      return;
+    }
+    void runFullAudit();
+  };
+
+  const exportReport = (format: 'html' | 'markdown') => {
+    setExportOpen(false);
+    const target = (() => {
+      const ep = findings.find((f) => f.endpoint)?.endpoint ?? null;
+      const m = ep?.match(/https?:\/\/[^\s/]+/i);
+      return m ? m[0] : null;
+    })();
+    const model = buildReportModel(findings, scans, {
+      title: 'API Security Audit Report',
+      target,
+      environment: activeEnvName,
+      generatedAt: Date.now(),
+    });
+    const content = format === 'html' ? toReportHtml(model) : toReportMarkdown(model);
+    const blob = new Blob([content], { type: format === 'html' ? 'text/html' : 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `security-audit-${new Date().toISOString().slice(0, 10)}.${format === 'html' ? 'html' : 'md'}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    useNotificationStore.getState().addToast({ variant: 'success', title: 'Report exported', description: a.download });
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[#070709]">
       {/* Header */}
@@ -181,9 +293,37 @@ export function SecurityPage() {
           <Button variant="ghost" size="sm" onClick={() => setActivePage('workspace')} className="hover:-translate-y-[1px] active:translate-y-0">
             <ArrowLeft size={14} /> Back to Workspace
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleScanAll} className="hover:-translate-y-[1px] hover:border-[#2E2E36] active:translate-y-0">
+          <Button variant="secondary" size="sm" onClick={handleScanAll} disabled={auditing} className="hover:-translate-y-[1px] hover:border-[#2E2E36] active:translate-y-0">
             <Search size={14} /> Scan all
           </Button>
+          <Button variant="primary" size="sm" onClick={handleFullAuditClick} disabled={auditing} title="Run passive + auth + injection + rate-limit on every open request">
+            {auditing ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} {auditing ? 'Auditing…' : 'Full audit'}
+          </Button>
+          <div className="relative">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setExportOpen((v) => !v)}
+              disabled={totalActive === 0}
+              title={totalActive === 0 ? 'No open findings to report' : 'Export a shareable audit report'}
+              className="hover:-translate-y-[1px] hover:border-[#2E2E36] active:translate-y-0"
+            >
+              <FileDown size={14} /> Export report
+            </Button>
+            {exportOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setExportOpen(false)} aria-hidden />
+                <div className="absolute right-0 z-20 mt-1 w-44 bg-[#121215] py-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)]" style={{ border: '1px solid #232329' }}>
+                  <button onClick={() => exportReport('html')} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#E6E8F0] hover:bg-[#1E1E24]">
+                    <FileDown size={13} className="text-[#8B5CF6]" /> HTML (print / PDF)
+                  </button>
+                  <button onClick={() => exportReport('markdown')} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#E6E8F0] hover:bg-[#1E1E24]">
+                    <FileDown size={13} className="text-[#8B5CF6]" /> Markdown
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -197,6 +337,21 @@ export function SecurityPage() {
           </Button>
         </div>
       </div>
+
+      {/* Audit progress */}
+      {auditStep && (
+        <div className="shrink-0 bg-[#0E0E10] px-6 py-2.5" style={{ borderBottom: '1px solid #232329' }}>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="flex items-center gap-1.5 font-mono text-xs text-[#C4B5FD]">
+              <Loader2 size={12} className="animate-spin" /> {auditStep.label}
+            </span>
+            <span className="font-mono text-xs tabular-nums text-[#7A7F93]">{auditStep.done}/{auditStep.total}</span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-[#1E1E24]">
+            <div className="h-full rounded-full bg-[#8B5CF6] transition-all duration-200" style={{ width: `${Math.round((auditStep.done / auditStep.total) * 100)}%` }} />
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2.5 bg-[#0E0E10] px-6 py-3 shrink-0" style={{ borderBottom: '1px solid #232329' }}>
@@ -436,6 +591,45 @@ export function SecurityPage() {
       </div>
 
       <FindingDetailDrawer finding={detailFinding} onClose={() => setDetailFinding(null)} />
+
+      <Modal
+        open={confirmAuditOpen}
+        onClose={() => setConfirmAuditOpen(false)}
+        title={`Run full audit against ${activeEnvName}?`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmAuditOpen(false)}>Cancel</Button>
+            <Button
+              variant={isProd ? 'danger' : 'primary'}
+              onClick={() => { setConfirmAuditOpen(false); void runFullAudit(); }}
+            >
+              {isProd ? `Continue — hit ${activeEnvName}` : 'Run audit'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div
+            className="flex items-start gap-3 rounded p-3"
+            style={{
+              background: isProd ? 'rgba(239,68,68,0.10)' : 'rgba(245,158,11,0.08)',
+              border: `1px solid ${isProd ? 'rgba(239,68,68,0.30)' : 'rgba(245,158,11,0.25)'}`,
+              color: isProd ? '#FCA5A5' : '#FCD34D',
+            }}
+          >
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">
+                {isProd ? 'Production' : 'Non-local environment'} — <span className="underline">{activeEnvName}</span>
+              </p>
+              <p className="text-xs leading-relaxed text-[#8F909E]">
+                The full audit sends <strong>live requests</strong>: credential-stripped and tampered-token replays, SQLi/XSS payloads on query params, forged JWTs (alg:none + weak-secret), privileged fields injected into JSON bodies, and a request burst for rate-limit checking. Only run against a shared or production environment with explicit permission.
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-[#8F909E]">Tip: switch to <span className="text-[#E6E8F0]">Local</span> for safe testing. The passive header/cookie checks are read-only regardless.</p>
+        </div>
+      </Modal>
     </div>
   );
 }

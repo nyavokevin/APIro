@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/renderer/src/lib/security/securityReport.ts"
+        ],
+        "createdAt": "2026-10-12T05:03:34.674Z",
+        "reason": "model decision: securityReport.ts emits a standalone print/PDF audit-report document (not app UI); severity-colored left accent on finding cards is a standard security-report convention that encodes severity for scanning/printing"
+      }
+    ]
+  }
+}
