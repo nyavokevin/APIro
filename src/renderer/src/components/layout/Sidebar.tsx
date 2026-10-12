@@ -3,10 +3,10 @@ import {
   LayoutDashboard,
   Code2,
   Folder,
-  Network,
   Clock,
   Globe,
   ScanLine,
+  Radar,
   Server,
   FlaskConical,
   Shield,
@@ -22,10 +22,10 @@ const mainNav: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={19} strokeWidth={1.75} /> },
   { key: 'workspace', label: 'Workspace', icon: <Code2 size={19} strokeWidth={1.75} /> },
   { key: 'collections', label: 'Collections', icon: <Folder size={19} strokeWidth={1.75} /> },
-  { key: 'flow', label: 'Flow', icon: <Network size={19} strokeWidth={1.75} /> },
   { key: 'history', label: 'History', icon: <Clock size={19} strokeWidth={1.75} /> },
   { key: 'environments', label: 'Environments', icon: <Globe size={19} strokeWidth={1.75} /> },
   { key: 'scanner', label: 'Scanner', icon: <ScanLine size={19} strokeWidth={1.75} /> },
+  { key: 'discover', label: 'API Discovery', icon: <Radar size={19} strokeWidth={1.75} /> },
   { key: 'mocks', label: 'Mocks', icon: <Server size={19} strokeWidth={1.75} /> },
   { key: 'testing', label: 'Testing', icon: <FlaskConical size={19} strokeWidth={1.75} /> },
   { key: 'security', label: 'Security', icon: <Shield size={19} strokeWidth={1.75} /> },
@@ -111,7 +111,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex shrink-0 flex-col h-screen sticky top-0 select-none"
+      className="flex shrink-0 flex-col min-h-0 h-full self-stretch select-none"
       style={{
         width: '228px',
         background: '#0E0E10',
@@ -154,55 +154,6 @@ export function Sidebar() {
       {/* Bottom section */}
       <div className="flex flex-col gap-1 px-2 pb-3">
         {bottomNav.map(renderItem)}
-
-        <div className="mx-2 my-2.5 h-px bg-[#1E1E24]" />
-
-        {/* User */}
-        <div
-          className="flex items-center gap-3 px-2 py-2.5 transition-colors duration-200 hover:bg-[#16161A] cursor-default"
-          style={{ paddingLeft: '12px', borderRadius: '0px', borderLeft: '2px solid transparent', marginLeft: '-1px' }}
-        >
-          <div className="relative shrink-0">
-            <img
-              src="https://i.pravatar.cc/100?img=33"
-              alt="User avatar"
-              width={36}
-              height={36}
-              className="avatar object-cover"
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '9999px',
-                border: '2px solid #232329',
-                display: 'block',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
-              }}
-            />
-            <span
-              aria-hidden
-              className="absolute"
-              style={{
-                bottom: '-1px',
-                right: '-1px',
-                width: '10px',
-                height: '10px',
-                borderRadius: '9999px',
-                background: '#10B981',
-                border: '2px solid #0E0E10',
-                display: 'block',
-                boxShadow: '0 0 6px rgba(16,185,129,0.45)',
-              }}
-            />
-          </div>
-          <span className="min-w-0 flex flex-col">
-            <span className="truncate" style={{ fontSize: '13px', lineHeight: '16px', fontWeight: 600, color: '#E6E8F0', letterSpacing: '-0.01em' }}>Alex Carter</span>
-            <span className="truncate" style={{ fontSize: '11px', lineHeight: '14px', color: '#7A7F93' }}>alex@apiro.dev</span>
-          </span>
-          <span className="ml-auto hidden xl:flex h-6 w-6 items-center justify-center text-[#7A7F93] hover:text-[#E6E8F0] hover:bg-[#232329] transition-colors" style={{ borderRadius: '0px' }}>
-            <Settings size={12} />
-          </span>
-        </div>
-        <p className="px-2 pt-1 text-[10px] leading-relaxed text-[#5A5E6E]">Local-only · offline · no telemetry</p>
       </div>
     </aside>
   );

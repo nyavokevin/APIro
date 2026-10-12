@@ -5,6 +5,9 @@ import { api } from '../../services/api';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { useTierGate } from '../../hooks/useTierGate';
+import { TierLimitBanner } from '../license/TierLimitBanner';
+import { useGateToast } from '../../hooks/useGateToast';
 
 interface ExportDialogProps {
   open: boolean;
@@ -60,6 +63,9 @@ export function ExportDialog({ open, onClose, collection, collections }: ExportD
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { checkGate } = useTierGate();
+  const showGateToast = useGateToast();
+  const [gateDenied, setGateDenied] = useState<import('../../hooks/useTierGate').GateResult | null>(null);
 
   const target = collections.find((c) => c.id === selectedId) ?? collection ?? null;
 
@@ -68,19 +74,33 @@ export function ExportDialog({ open, onClose, collection, collections }: ExportD
       setError('Select a collection to export.');
       return;
     }
+    let brandingDenied: import('../../hooks/useTierGate').GateResult | null = null;
+    const wantsBranding = !!(logoPath.trim() || primaryColor.toLowerCase() !== '#ff5c00');
+    if (wantsBranding) {
+      const gate = await checkGate('ExportBrandedPdf');
+      if (gate.type === 'Denied') {
+        brandingDenied = gate;
+        setGateDenied(gate);
+        showGateToast(gate);
+      } else {
+        setGateDenied(null);
+      }
+    } else {
+      setGateDenied(null);
+    }
     setLoading(true);
     setError(null);
     setPreview(null);
     setSuccess(null);
     try {
-      const options: PdfExportOptions = {
+      const effectiveOptions: PdfExportOptions = {
         title: title || target.name,
         version,
         format,
-        primaryColor,
-        logoPath: logoPath || undefined,
+        primaryColor: brandingDenied ? '#ff5c00' : primaryColor,
+        logoPath: brandingDenied ? undefined : (logoPath || undefined),
       };
-      const res = await api.pdfExport.generate(target, options);
+      const res = await api.pdfExport.generate(target, effectiveOptions);
       if (res.format === 'pdf') {
         const safeName = (title || target.name).replace(/[^\w.-]+/g, '_');
         downloadContent(`${safeName}.pdf`, res.content, 'pdf');
@@ -170,6 +190,9 @@ export function ExportDialog({ open, onClose, collection, collections }: ExportD
           placeholder="C:\\logos\\brand.png or /assets/logo.png"
         />
 
+        {gateDenied && gateDenied.type === 'Denied' && (
+          <TierLimitBanner result={gateDenied} onDismiss={() => setGateDenied(null)} />
+        )}
         {error && <p className="text-sm text-danger">{error}</p>}
         {success && <p className="text-sm text-success">{success}</p>}
 

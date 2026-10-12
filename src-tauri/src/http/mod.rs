@@ -387,7 +387,6 @@ pub async fn execute(input: &RequestInput, vars: &HashMap<String, String>, cance
                 Some(Ok(bytes)) => body.extend_from_slice(&bytes),
                 Some(Err(e)) => return error_response(&e.to_string()),
                 None => break,
-                _ => break,
             }
         }
     }

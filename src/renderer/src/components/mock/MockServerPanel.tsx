@@ -5,6 +5,9 @@ import { api } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { isTauri } from '../../services/tauri';
+import { useTierGate } from '../../hooks/useTierGate';
+import { TierLimitBanner } from '../license/TierLimitBanner';
+import { useGateToast } from '../../hooks/useGateToast';
 
 const METHODS: MockRoute['method'][] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'TRACE', 'GRAPHQL'];
 
@@ -39,6 +42,9 @@ export function MockServerPanel() {
   const [error, setError] = useState<string | null>(null);
   const [specInput, setSpecInput] = useState('');
   const [specGenerating, setSpecGenerating] = useState<string | null>(null);
+  const { checkGate } = useTierGate();
+  const showGateToast = useGateToast();
+  const [gateDenied, setGateDenied] = useState<import('../../hooks/useTierGate').GateResult | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -62,6 +68,13 @@ export function MockServerPanel() {
     if (!name.trim()) { setError('Name is required.'); return; }
     const p = parseInt(port, 10);
     if (Number.isNaN(p) || p < 1 || p > 65535) { setError('Port must be 1-65535.'); return; }
+    const gate = await checkGate('UseMockServer');
+    if (gate.type === 'Denied') {
+      setGateDenied(gate);
+      showGateToast(gate);
+      setError(gate.upgradeHint);
+      return;
+    }
     try {
       const srv = await api.mockServer.create({
         name: name.trim(),
@@ -74,7 +87,7 @@ export function MockServerPanel() {
         graphqlEnabled,
       } as any);
       setServers((prev) => [...prev, srv]);
-      setName(''); setError(null);
+      setName(''); setError(null); setGateDenied(null);
     } catch (err) { setError(err instanceof Error ? err.message : String(err)); }
   };
 
@@ -189,7 +202,10 @@ export function MockServerPanel() {
           <Button variant="primary" onClick={create} className="hover:-translate-y-[1px] hover:shadow-[0_6px_16px_rgba(139,92,246,0.28)] active:translate-y-0">
             <Plus size={14} /> Create server
           </Button>
-          {error && (
+          {gateDenied && gateDenied.type === 'Denied' && (
+            <TierLimitBanner result={gateDenied} onDismiss={() => setGateDenied(null)} />
+          )}
+          {error && !gateDenied && (
             <span className="inline-flex items-center gap-1.5 bg-[rgba(239,68,68,0.10)] px-2.5 py-1.5 text-xs font-medium text-[#EF4444] animate-fadeUp" style={{ border: '1px solid rgba(239,68,68,0.20)' }}>
               {error}
             </span>

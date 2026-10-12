@@ -5,10 +5,10 @@ import {
   Plus,
   Globe,
   ScanLine,
+  Radar,
   Server,
   Settings as SettingsIcon,
   FileDown,
-  Network,
   LayoutDashboard,
   Code2,
   Folder,
@@ -152,11 +152,6 @@ export function CommandPalette() {
               onSelect={() => run(() => setActivePage('collections'))}
             />
             <PaletteItem
-              icon={<Network size={14} />}
-              label="Open Connection Flow"
-              onSelect={() => run(() => setActivePage('flow'))}
-            />
-            <PaletteItem
               icon={<Clock size={14} />}
               label="Open History"
               onSelect={() => run(() => setActivePage('history'))}
@@ -170,6 +165,11 @@ export function CommandPalette() {
               icon={<ScanLine size={14} />}
               label="Open Route Scanner"
               onSelect={() => run(() => setActivePage('scanner'))}
+            />
+            <PaletteItem
+              icon={<Radar size={14} />}
+              label="Open API Discovery"
+              onSelect={() => run(() => setActivePage('discover'))}
             />
             <PaletteItem
               icon={<Server size={14} />}

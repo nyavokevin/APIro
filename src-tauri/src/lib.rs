@@ -6,6 +6,7 @@ pub mod commands;
 pub mod flow;
 pub mod git;
 pub mod http;
+pub mod license;
 pub mod mock;
 pub mod scanner;
 pub mod store;
@@ -19,6 +20,18 @@ use tokio_util::sync::CancellationToken;
 pub fn run() {
     let store = Store::open().expect("failed to open local store");
     let cancel_map: DashMap<String, CancellationToken> = DashMap::new();
+    // Background license recheck (non-blocking, fail open)
+    {
+        // Clone store for background task — Store is not Clone, so open a second handle
+        // Background check uses same DB path, will open separately in task
+        tauri::async_runtime::spawn(async move {
+            // Delay 2s to not block startup
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            if let Ok(bg_store) = Store::open() {
+                license::activate::background_license_recheck(bg_store).await;
+            }
+        });
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
@@ -72,6 +85,17 @@ pub fn run() {
             scanner::watch::scanner_watch_start,
             scanner::watch::scanner_watch_stop,
             scanner::watch::scanner_watch_is_active,
+            license::verify::license_verify_offline,
+            license::activate::license_get_status,
+            license::activate::license_activate,
+            license::activate::license_deactivate,
+            license::activate::license_revalidate,
+            license::gate::license_check_gate,
+            license::gate::license_check_gate_typed,
+            license::gate::license_get_usage_summary,
+            license::ai_quota::license_consume_ai_quota,
+            license::ai_quota::license_get_ai_quota,
+            license::downgrade::license_handle_downgrade
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

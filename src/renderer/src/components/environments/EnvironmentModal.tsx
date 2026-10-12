@@ -7,6 +7,9 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { uid } from '../../lib/id';
+import { useTierGate } from '../../hooks/useTierGate';
+import { TierLimitBanner } from '../license/TierLimitBanner';
+import { useGateToast } from '../../hooks/useGateToast';
 
 interface EnvironmentModalProps {
   open: boolean;
@@ -27,12 +30,16 @@ export function EnvironmentModal({ open, onClose, environment }: EnvironmentModa
 
   const createEnvironment = useEnvironmentStore((s) => s.createEnvironment);
   const updateEnvironment = useEnvironmentStore((s) => s.updateEnvironment);
+  const { checkGate } = useTierGate();
+  const showGateToast = useGateToast();
+  const [gateDenied, setGateDenied] = useState<import('../../hooks/useTierGate').GateResult | null>(null);
 
   useEffect(() => {
     if (open) {
       setName(environment?.name ?? '');
       setVariables(environment?.variables ?? [blankVar()]);
       setRevealed({});
+      setGateDenied(null);
     }
   }, [open, environment]);
 
@@ -43,9 +50,17 @@ export function EnvironmentModal({ open, onClose, environment }: EnvironmentModa
     const cleaned = variables.filter((v) => v.key.trim());
     if (environment) {
       await updateEnvironment(environment.id, { name, variables: cleaned });
-    } else {
-      await createEnvironment(name, cleaned);
+      onClose();
+      return;
     }
+    const result = await checkGate('CreateEnvironment');
+    if (result.type === 'Denied') {
+      setGateDenied(result);
+      showGateToast(result);
+      return;
+    }
+    await createEnvironment(name, cleaned);
+    setGateDenied(null);
     onClose();
   };
 
@@ -67,6 +82,9 @@ export function EnvironmentModal({ open, onClose, environment }: EnvironmentModa
       }
     >
       <div className="space-y-3">
+        {gateDenied && gateDenied.type === 'Denied' && (
+          <TierLimitBanner result={gateDenied} onDismiss={() => setGateDenied(null)} />
+        )}
         <Input
           autoFocus
           placeholder="Environment name"

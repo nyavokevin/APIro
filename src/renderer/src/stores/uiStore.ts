@@ -7,10 +7,10 @@ export type AppPage =
   | 'dashboard'
   | 'workspace'
   | 'collections'
-  | 'flow'
   | 'history'
   | 'environments'
   | 'scanner'
+  | 'discover'
   | 'mocks'
   | 'testing'
   | 'security'
@@ -110,6 +110,8 @@ export const useUiStore = create<UiState>()(
           state.theme = 'dark';
           // Migrate old default page 'workspace' -> 'dashboard' if no persisted page
           if (!state.activePage) state.activePage = 'dashboard';
+          // Patch: removed 'flow' page — redirect persisted flow to dashboard
+          if ((state.activePage as string) === 'flow') state.activePage = 'dashboard';
           applyCodePrefs(state.codeFontFamily, state.codeFontSize);
         } else {
           applyTheme('dark');

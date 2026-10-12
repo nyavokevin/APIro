@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, FolderTree, Upload, FileDown, Network, Search, Folder, FileCode, Trash2, FolderOpen, ArrowRight, Layers } from 'lucide-react';
+import { Plus, FolderTree, Upload, FileDown, Search, Folder, FileCode, Trash2, FolderOpen, ArrowRight, Layers } from 'lucide-react';
 import { useCollectionStore } from '../stores/collectionStore';
 import { useRequestStore } from '../stores/requestStore';
 import { useUiStore } from '../stores/uiStore';
@@ -104,7 +104,7 @@ export function Collections() {
               <Upload size={14} /> Import
             </Button>
           </div>
-          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+          <div className="mt-1.5">
             <Button
               variant="secondary"
               size="sm"
@@ -113,14 +113,6 @@ export function Collections() {
               className="w-full hover:-translate-y-[1px] hover:border-[#2E2E36] hover:bg-[#1E1E24] active:translate-y-0 active:scale-[0.98] disabled:hover:translate-y-0 disabled:hover:shadow-none"
             >
               <FileDown size={14} /> Export
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setActivePage('flow')}
-              className="w-full hover:-translate-y-[1px] hover:border-[#2E2E36] hover:bg-[#1E1E24] hover:shadow-[0_2px_8px_rgba(0,0,0,0.35)] active:translate-y-0 active:scale-[0.98]"
-            >
-              <Network size={14} /> Flow
             </Button>
           </div>
 
@@ -363,9 +355,7 @@ export function Collections() {
               )}
 
               <p className="mt-3 flex flex-wrap items-center gap-1.5 font-mono text-[11px] tracking-wide text-[#5A5E6E]">
-                Tip: Requests open in the Workspace. Use{' '}
-                <span className="border border-[#232329] bg-[#121215] px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-[#9FA3B5]">Connection Flow</span> to visualise
-                dependencies.
+                Tip: Requests open in the Workspace. Use Environments to manage variables across requests.
               </p>
             </div>
           </>

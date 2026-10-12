@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>APIro — Workspace Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+/* ===== APIro Design System — exact copy of globals.css tokens ===== */
+:root{
+  --bg-base:#070709; --bg-sidebar:#0E0E10; --bg-card:#121215; --bg-card-hover:#16161A; --bg-input:#121215; --bg-hover:#19191E; --bg-selected:rgba(139,92,246,0.10);
+  --text-primary:#E6E8F0; --text-secondary:#9FA3B5; --text-muted:#7A7F93; --text-tertiary:#71768A;
+  --border-default:#232329; --border-hover:#2E2E36; --border-selected:#8B5CF6; --border-divider:#1E1E24;
+  --accent-violet:#8B5CF6; --accent-green:#10B981; --accent-red:#EF4444; --accent-yellow:#FBBF24;
+  --method-get:#10B981; --method-post:#8B5CF6; --method-put:#EAB308; --method-delete:#EF4444; --method-patch:#A78BFA;
+  --font-sans:'Geist','Inter',system-ui,sans-serif; --font-mono:'JetBrains Mono','Fira Code',monospace;
+  --ease-spring:cubic-bezier(0.16,1,0.3,1);
+}
+*{box-sizing:border-box}
+html{color-scheme:dark; scrollbar-gutter:stable}
+body{margin:0; font-family:var(--font-sans); background:var(--bg-base); color:var(--text-primary); -webkit-font-smoothing:antialiased; font-feature-settings:"cv11","ss01"; text-rendering:optimizeLegibility}
+code,pre,.mono{font-family:var(--font-mono)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:#2A2A32;border-radius:9999px}
+::-webkit-scrollbar-thumb:hover{background:#3A3A46}
+*{scrollbar-width:thin; scrollbar-color:#2A2A32 transparent}
+button{font-family:inherit; cursor:pointer}
+button:active:not(:disabled){transform:scale(0.99)}
+input,select,textarea{border-radius:0 !important}
+.tabular{font-variant-numeric:tabular-nums}
+.skeleton{position:relative;overflow:hidden;background:#18181E;border:1px solid #232329}
+.skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);animation:shim 1.8s infinite}
+@keyframes shim{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.animate-fadeUp{animation:fadeUp .5s var(--ease-spring) both}
+.card-spotlight{position:relative}
+.card-spotlight::before{content:"";position:absolute;inset:-1px;padding:1px;background:linear-gradient(180deg,rgba(255,255,255,0.06),transparent 40%);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity 220ms var(--ease-spring);pointer-events:none}
+.card-spotlight:hover::before{opacity:1}
+
+/* layout */
+.app{height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg-base);color:var(--text-primary)}
+.titlebar{height:36px;min-height:36px;display:flex;align-items:stretch;background:#070709;border-bottom:1px solid #232329;user-select:none}
+.sidebar{width:228px;min-width:228px;background:var(--bg-sidebar);border-right:1px solid #232329;display:flex;flex-direction:column}
+.main{flex:1;display:flex;min-height:0;overflow:hidden}
+.content{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.header{height:52px;min-height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--bg-base);border-bottom:1px solid transparent}
+.reqbar{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid #232329;padding:14px;margin:14px 28px 0 28px;box-shadow:0 1px 8px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.03)}
+.urlinp{flex:1;height:40px;background:#0E0E10;border:1px solid #232329;color:var(--text-primary);padding:0 14px;font-family:var(--font-mono);font-size:13px;outline:none;transition:all .2s var(--ease-spring)}
+.urlinp:focus{border-color:var(--accent-violet) !important;box-shadow:0 0 0 3px rgba(139,92,246,.10);background:#121215 !important}
+.urlinp::placeholder{color:#5A5E6E}
+.sendbtn{height:40px;padding:0 20px;background:var(--accent-violet);color:#fff;border:1px solid transparent;font-weight:640;font-size:13px;letter-spacing:-.01em;display:inline-flex;align-items:center;gap:8px;box-shadow:0 0 14px rgba(139,92,246,.28),inset 0 1px 0 rgba(255,255,255,.14);transition:all .2s var(--ease-spring)}
+.sendbtn:hover{background:#7C3AED}
+.sendbtn:disabled{opacity:.45;cursor:not-allowed}
+.methodsel{height:40px;padding:0 36px 0 12px;background:#0E0E10;border:1px solid #232329;font-family:var(--font-mono);font-weight:600;font-size:13px;letter-spacing:.02em;appearance:none;outline:none}
+.tabsbar{display:flex;overflow-x:auto;gap:0;background:var(--bg-base);border-bottom:1px solid #232329;margin:14px 28px 0 28px}
+.tabbtn{padding:12px 16px;font-size:13px;font-weight:450;letter-spacing:-.01em;white-space:nowrap;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-secondary);margin-bottom:-1px;transition:all .2s var(--ease-spring)}
+.tabbtn.active{color:var(--text-primary);background:rgba(139,92,246,.08);border-bottom-color:var(--accent-violet);font-weight:600}
+.tabbtn:hover{color:var(--text-primary)}
+.resppanel{margin:14px 28px;background:var(--bg-base);border:1px solid #232329;box-shadow:0 1px 10px rgba(0,0,0,.22);display:flex;flex-direction:column;overflow:hidden}
+.resphead{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg-card);border-bottom:1px solid #232329;flex-wrap:wrap}
+.pill{font-size:12px;padding:3px 8px;border:1px solid;display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.dot{width:6px;height:6px;border-radius:9999px;display:inline-block}
+.reqtabbar{display:flex;align-items:center;background:var(--bg-base);border-bottom:1px solid #232329;padding:0 12px;gap:2px;overflow-x:auto}
+.rqtab{padding:8px 12px;font-size:12px;display:flex;align-items:center;gap:6px;border:1px solid transparent;white-space:nowrap}
+.rqtab.active{background:#121215;border-color:#232329;color:var(--text-primary);border-bottom-color:#121215;margin-bottom:-1px}
+.rqtab:not(.active){color:var(--text-muted)}
+.envbadge{padding:2px 8px;font-size:11px;border:1px solid #232329;background:#121215;color:var(--text-secondary);display:inline-flex;align-items:center;gap:6px}
+.kvrow{display:grid;grid-template-columns:28px 1fr 1fr 36px;gap:8px;align-items:center;padding:6px 6px;background:#0E0E10;border:1px solid #232329}
+.kvinp{height:32px;background:#121215;border:1px solid #232329;color:var(--text-primary);font-family:var(--font-mono);font-size:13px;padding:0 10px;outline:none}
+.kvinp:focus{border-color:var(--accent-violet);box-shadow:0 0 0 3px rgba(139,92,246,.10)}
+.badge{padding:1px 6px;font-size:10px;border:1px solid transparent;border-radius:9999px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Titlebar 36px frameless -->
+  <div class="titlebar">
+   <div style="flex:1;display:flex;align-items:center;gap:12px;padding:0 12px;min-width:0">
+    <span style="width:22px;height:22px;background:#8B5CF6;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(139,92,246,.22)"><i data-lucide="boxes" style="width:12px;height:12px;color:#fff"></i></span>
+    <span style="font-weight:650;font-size:12.5px;letter-spacing:-.025em">APIro</span>
+    <span style="display:flex;align-items:center;gap:6px;margin-left:10px;font-size:11px;color:#5A5E6E"><span style="width:4px;height:4px;border-radius:9999px;background:#232329"></span> Local · Offline</span>
+    <span style="margin-left:auto;font-size:10px;color:#7A7F93;border:1px solid #232329;background:#121215;padding:2px 6px">DEMO · seeded</span>
+   </div>
+   <div style="display:flex">
+    <button style="width:46px;border:none;border-left:1px solid #232329;background:transparent;color:#7A7F93">─</button>
+    <button style="width:46px;border:none;border-left:1px solid #232329;background:transparent;color:#7A7F93">□</button>
+    <button style="width:46px;border:none;border-left:1px solid #232329;background:transparent;color:#fff;background:#EF4444">✕</button>
+   </div>
+ </div>
+
+ <div class="main">
+  <!-- Sidebar 228px -->
+  <aside class="sidebar">
+   <div style="display:flex;align-items:center;gap:12px;padding:22px 14px 28px 14px">
+    <span style="width:34px;height:34px;background:#8B5CF6;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(139,92,246,.25)"><i data-lucide="boxes" style="width:17px;height:17px;color:#fff"></i></span>
+    <div style="display:flex;flex-direction:column">
+     <span style="font-weight:700;font-size:15.5px;letter-spacing:-.03em;color:#E6E8F0">APIro</span>
+     <span style="font-size:11px;color:#7A7F93">Reimagined · v0.1.1</span>
+    </div>
+    <span style="margin-left:auto;font-size:10px;border:1px solid #232329;background:#121215;color:#7A7F93;padding:2px 6px">v0.1</span>
+   </div>
+   <nav style="flex:1;display:flex;flex-direction:column;gap:2px;padding:0 8px">
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="layout-dashboard" style="width:19px;height:19px"></i> Dashboard</button>
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#E6E8F0;background:rgba(139,92,246,.10);border-left:2px solid #8B5CF6;margin-left:-1px;font-weight:600;box-shadow:inset 3px 0 12px rgba(139,92,246,.08);width:100%;border-right:none;border-top:none;border-bottom:none"><i data-lucide="code-2" style="width:19px;height:19px;color:#8B5CF6"></i> Workspace</button>
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="folder" style="width:19px;height:19px"></i> Collections <span style="margin-left:auto;font-size:11px;border:1px solid #232329;background:#121215;padding:1px 6px">3</span></button>
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="clock" style="width:19px;height:19px"></i> History</button>
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="globe" style="width:19px;height:19px"></i> Environments</button>
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="scan-line" style="width:19px;height:19px"></i> Scanner</button>
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="server" style="width:19px;height:19px"></i> Mocks <span style="width:7px;height:7px;border-radius:9999px;background:#10B981;box-shadow:0 0 6px rgba(16,185,129,.5);margin-left:4px"></span></button>
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="flask-conical" style="width:19px;height:19px"></i> Testing</button>
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="shield" style="width:19px;height:19px"></i> Security <span style="margin-left:auto;min-width:18px;height:18px;background:#EF4444;color:#fff;font-size:11px;font-weight:600;border-radius:9999px;display:flex;align-items:center;justify-content:center">2</span></button>
+   </nav>
+   <div style="padding:8px;padding-bottom:12px;display:flex;flex-direction:column;gap:4px">
+    <button style="display:flex;align-items:center;gap:12px;height:38px;padding:0 14px 0 12px;color:#7A7F93;font-size:13px;text-align:left;border:none;background:transparent;width:100%"><i data-lucide="settings" style="width:19px;height:19px"></i> Settings</button>
+   </div>
+  </aside>
+
+  <!-- Content -->
+  <div class="content">
+   <div class="header">
+    <div style="display:flex;align-items:center;gap:10px">
+     <h1 style="margin:0;font-size:15px;font-weight:650;letter-spacing:-.02em;color:#E6E8F0;display:flex;align-items:center;gap:10px"><span style="width:28px;height:28px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.22);color:#8B5CF6;display:flex;align-items:center;justify-content:center"><i data-lucide="code-2" style="width:14px;height:14px"></i></span> Workspace <span style="font-size:11px;font-weight:600;color:#5A5E6E;border:1px solid #232329;background:#121215;padding:2px 6px;letter-spacing:.04em">3 TABS</span></h1>
+     <span style="font-size:11px;color:#7A7F93;display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:9999px;background:#10B981;box-shadow:0 0 6px rgba(16,185,129,.4)"></span> 2 collections · offline</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+     <span class="envbadge"><span style="width:7px;height:7px;border-radius:9999px;background:#8B5CF6"></span> staging <span style="color:#5A5E6E">· {{baseUrl}} → api.staging.apiforge.dev</span> <i data-lucide="chevron-down" style="width:12px;height:12px;opacity:.6"></i></span>
+     <span style="font-size:11px;color:#5A5E6E;border:1px solid #232329;background:#121215;padding:4px 8px">⌘K</span>
+    </div>
+   </div>
+   <div style="height:1px;background:linear-gradient(90deg,transparent,#1E1E24 8%,#1E1E24 92%,transparent);margin:0 28px"></div>
+   <div style="height:10px;background:var(--bg-base)"></div>
+
+   <!-- Request Tab Bar -->
+   <div class="reqtabbar">
+    <button class="rqtab active" data-rqtab="0"><span style="width:7px;height:7px;border-radius:9999px;background:var(--method-get)"></span> GET Users <span style="font-size:10px;color:#7A7F93;border:1px solid #232329;background:#121215;padding:1px 4px">200</span> <span style="margin-left:6px;color:#5A5E6E;font-size:11px">×</span></button>
+    <button class="rqtab" data-rqtab="1"><span style="width:7px;height:7px;border-radius:9999px;background:var(--method-post)"></span> POST Create user</button>
+    <button class="rqtab" data-rqtab="2"><span style="width:7px;height:7px;border-radius:9999px;background:var(--method-get)"></span> GET Me</button>
+    <button style="margin-left:6px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid #232329;color:#7A7F93"><i data-lucide="plus" style="width:12px;height:12px"></i></button>
+   </div>
+
+   <!-- Request Builder -->
+   <div class="reqbar" id="reqbar">
+    <div style="position:relative">
+     <select id="methodSel" class="methodsel" style="color:var(--method-get)">
+      <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option>
+     </select>
+     <i data-lucide="chevron-down" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:#7A7F93;pointer-events:none"></i>
+    </div>
+    <input id="urlInp" class="urlinp" value="{{baseUrl}}/api/users?page=1&limit=10" spellcheck="false" />
+    <div style="width:1px;height:24px;background:#232329"></div>
+    <button title="Security" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid #232329;color:#7A7F93"><i data-lucide="shield" style="width:14px;height:14px"></i></button>
+    <button id="sendBtn" class="sendbtn"><i data-lucide="send" style="width:14px;height:14px"></i> Send <span style="opacity:.7;font-weight:400;font-size:11px">↵</span></button>
+   </div>
+
+   <!-- Inner Tabs + Panel -->
+   <div class="tabsbar" id="tabsbar">
+    <button class="tabbtn active" data-tab="params">Params <span style="margin-left:6px;font-size:10px;background:var(--accent-violet);color:#fff;padding:1px 5px;border-radius:9999px">2</span></button>
+    <button class="tabbtn" data-tab="headers">Headers <span style="margin-left:6px;font-size:10px;background:#232329;color:#9FA3B5;padding:1px 5px;border-radius:9999px">1</span></button>
+    <button class="tabbtn" data-tab="body">Body</button>
+    <button class="tabbtn" data-tab="auth">Auth</button>
+    <button class="tabbtn" data-tab="pre">Pre-request</button>
+    <button class="tabbtn" data-tab="tests">Tests <span style="margin-left:6px;font-size:10px;background:#10B981;color:#fff;padding:1px 5px;border-radius:9999px">2 ✓</span></button>
+    <button class="tabbtn" data-tab="results">Results</button>
+    <button class="tabbtn" data-tab="security" style="display:inline-flex;align-items:center;gap:6px"><i data-lucide="shield" style="width:13px;height:13px"></i> Security <span style="min-width:16px;height:16px;background:#EF4444;color:#fff;font-size:10px;font-weight:600;border-radius:9999px;display:inline-flex;align-items:center;justify-content:center">2</span></button>
+   </div>
+
+   <div style="flex:1;min-height:0;overflow:auto;margin:0 28px;background:var(--bg-base)">
+    <div style="background:var(--bg-card);border:1px solid #232329;border-top:none;box-shadow:0 1px 8px rgba(0,0,0,.22);padding:16px;min-height:220px">
+     <!-- Params view -->
+     <div data-panel="params">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+       <span style="font-size:11px;letter-spacing:.06em;color:#7A7F93;font-weight:600">QUERY PARAMS · auto-synced from URL</span>
+       <span style="font-size:11px;color:#5A5E6E" class="mono">2 active · 2 total</span>
+      </div>
+      <div style="display:grid;grid-template-columns:28px 1fr 1fr 36px;gap:8px;padding:0 6px 8px 6px;font-size:11px;font-weight:600;letter-spacing:.06em;color:#7A7F93;border-bottom:1px solid #232329">
+       <span style="text-align:center">✓</span><span>Key</span><span>Value</span><span></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+       <div class="kvrow"><span style="display:flex;justify-content:center"><input type="checkbox" checked style="accent-color:#8B5CF6;width:14px;height:14px"></span><input class="kvinp" value="page"><div style="display:flex;gap:6px"><input class="kvinp" value="1" style="flex:1"><button title="Seed" style="width:32px;height:32px;background:#121215;border:1px solid #232329;color:#7A7F93;display:flex;align-items:center;justify-content:center"><i data-lucide="sparkles" style="width:13px;height:13px"></i></button></div><button style="width:32px;height:32px;border:1px solid transparent;background:transparent;color:#7A7F93;display:flex;align-items:center;justify-content:center"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button></div>
+       <div class="kvrow"><span style="display:flex;justify-content:center"><input type="checkbox" checked style="accent-color:#8B5CF6;width:14px;height:14px"></span><input class="kvinp" value="limit"><div style="display:flex;gap:6px"><input class="kvinp" value="{{pageSize}}" style="flex:1"><button title="Seed" style="width:32px;height:32px;background:#121215;border:1px solid #232329;color:#7A7F93;display:flex;align-items:center;justify-content:center"><i data-lucide="sparkles" style="width:13px;height:13px"></i></button></div><button style="width:32px;height:32px;border:1px solid transparent;background:transparent;color:#7A7F93;display:flex;align-items:center;justify-content:center"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button></div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+       <button style="padding:6px 10px;font-size:12px;background:transparent;border:1px dashed #2E2E36;color:var(--text-secondary);display:flex;align-items:center;gap:6px"><i data-lucide="plus" style="width:14px;height:14px"></i> Add param</button>
+       <span class="mono" style="font-size:11px;color:#5A5E6E">Tip: {{pageSize}} → 10 (staging) via environment</span>
+      </div>
+     </div>
+     <!-- Headers view -->
+     <div data-panel="headers" style="display:none">
+      <div style="font-size:11px;letter-spacing:.06em;color:#7A7F93;font-weight:600;margin-bottom:12px">HEADERS · 1 enabled</div>
+      <div class="kvrow"><span style="display:flex;justify-content:center"><input type="checkbox" checked style="accent-color:#8B5CF6;width:14px;height:14px"></span><input class="kvinp" value="Accept"><input class="kvinp" value="application/json"><button style="width:32px;height:32px;border:none;background:transparent;color:#7A7F93"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button></div>
+      <div style="margin-top:12px;padding:10px;background:rgba(139,92,246,.06);border:1px dashed rgba(139,92,246,.18);font-size:12px;color:#9FA3B5"><b style="color:#E6E8F0">Auth injected →</b> <span class="mono" style="color:#8B5CF6">Authorization: Bearer {{accessToken}}</span> resolves from staging env (secret).</div>
+     </div>
+     <!-- Body view -->
+     <div data-panel="body" style="display:none">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+       <span style="font-size:11px;color:#7A7F93">Body type</span>
+       <select style="height:28px;background:#0E0E10;border:1px solid #232329;color:#E6E8F0;padding:0 8px;font-size:12px"><option>none</option><option selected>json</option><option>form-data</option><option>xml</option><option>graphql</option></select>
+       <span style="margin-left:auto;font-size:11px;color:#5A5E6E">· auto seed <span style="color:#8B5CF6">emptyOnly</span></span>
+      </div>
+      <div style="background:#0E0E10;border:1px solid #232329;padding:12px;font-family:var(--font-mono);font-size:13px;line-height:20px;color:#E6E8F0;white-space:pre;overflow:auto">{<span style="color:#A5D6A7">"search"</span>: <span style="color:#A5D6A7">"{{query}}"</span>, <span style="color:#A5D6A7">"role"</span>: <span style="color:#A5D6A7">"admin"</span>}</div>
+     </div>
+     <!-- Auth view -->
+     <div data-panel="auth" style="display:none">
+      <div style="display:flex;gap:12px;align-items:start">
+       <div style="flex:1">
+        <div style="font-size:11px;letter-spacing:.06em;color:#7A7F93;font-weight:600;margin-bottom:8px">AUTH TYPE</div>
+        <select style="width:100%;height:40px;background:#0E0E10;border:1px solid #232329;color:#E6E8F0;padding:0 12px"><option>None</option><option selected>Bearer</option><option>Basic</option><option>API Key</option></select>
+        <div style="margin-top:10px">
+         <label style="font-size:11px;color:#9FA3B5">Token · resolves {{accessToken}}</label>
+         <input class="kvinp" style="width:100%;margin-top:6px;height:40px" value="eyJhbGciOiJIUzI1NiIs..." readonly>
+        </div>
+       </div>
+       <div style="width:260px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.18);padding:12px;font-size:12px;color:#9FA3B5">
+        <div style="font-weight:600;color:#10B981;display:flex;align-items:center;gap:6px"><i data-lucide="shield-check" style="width:14px;height:14px"></i> JWT decoded</div>
+        <div class="mono" style="margin-top:8px;font-size:11px;line-height:16px;color:#E6E8F0">sub: 42<br/>exp: in 43m 12s <span style="color:#10B981">● valid</span><br/>role: admin</div>
+       </div>
+      </div>
+     </div>
+     <!-- Pre-request -->
+     <div data-panel="pre" style="display:none">
+      <div style="font-size:11px;letter-spacing:.06em;color:#7A7F93;font-weight:600;margin-bottom:8px">PRE-REQUEST SCRIPT · Rhai</div>
+      <div style="background:#0E0E10;border:1px solid #232329;padding:12px;font-family:var(--font-mono);font-size:12px;color:#9FA3B5">// runs before send → pm.environment.set()<br><span style="color:#82AAFF">pm.environment.set</span>(<span style="color:#A5D6A7">"nonce"</span>, <span style="color:#FFCC80">{{$randomUUID}}</span>);</div>
+     </div>
+     <!-- Tests -->
+     <div data-panel="tests" style="display:none">
+      <div style="font-size:11px;letter-spacing:.06em;color:#7A7F93;font-weight:600;margin-bottom:8px">TESTS · pm.test / pm.expect</div>
+      <div style="background:#0E0E10;border:1px solid #232329;padding:12px;font-family:var(--font-mono);font-size:12px;color:#E6E8F0;white-space:pre"><span style="color:#82AAFF">pm.test</span>(<span style="color:#A5D6A7">"status 200"</span>, () =&gt; <span style="color:#82AAFF">pm.expect</span>(pm.response.code).<span style="color:#FFCC80">toBe</span>(<span style="color:#FFCC80">200</span>));
+<span style="color:#82AAFF">pm.test</span>(<span style="color:#A5D6A7">"has users array"</span>, () =&gt; <span style="color:#82AAFF">pm.expect</span>(pm.response.json().data).<span style="color:#FFCC80">toBeArray</span>());</div>
+      <div style="margin-top:10px;display:flex;gap:8px"><span style="font-size:11px;background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.18);color:#10B981;padding:3px 8px">2 passed in last run</span><span style="font-size:11px;color:#5A5E6E">Shift+Alt+F to format</span></div>
+     </div>
+     <div data-panel="results" style="display:none"><div style="font-size:12px;color:#7A7F93">Last run: <b style="color:#10B981">2/2 tests passed</b> · 184ms · <span style="color:#E6E8F0">staging</span></div></div>
+     <div data-panel="security" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><i data-lucide="shield-alert" style="width:16px;height:16px;color:#EF4444"></i><b style="color:#E6E8F0">2 findings</b> <span style="font-size:11px;background:#EF4444;color:#fff;padding:1px 6px;border-radius:9999px">HIGH</span> <span style="font-size:11px;background:#FBBF24;color:#000;padding:1px 6px;border-radius:9999px">MED</span></div>
+      <div style="border:1px solid #232329;background:#0E0E10;padding:10px;font-size:12px;color:#FCA5A5;border-left:2px solid #EF4444">Missing <b>CSP</b> header + <b>CORS *</b> — <span style="color:#9FA3B5">OWASP API8:2023</span> · <i style="color:#8B5CF6">Fix: add CSP + restrict origin</i></div>
+      <div style="margin-top:8px;border:1px solid #232329;background:#0E0E10;padding:10px;font-size:12px;color:#FCD34D;border-left:2px solid #FBBF24">Cookie without <b>Secure; HttpOnly</b> — <span style="color:#9FA3B5">OWASP API8</span></div>
+     </div>
+    </div>
+   </div>
+
+   <!-- Response -->
+   <div class="resppanel" id="resp">
+    <div class="resphead">
+     <span class="pill" style="color:#10B981;border-color:rgba(16,185,129,.33);background:rgba(16,185,129,.08);box-shadow:0 0 8px rgba(16,185,129,.14)"><span class="dot" style="background:#10B981"></span> 200 OK</span>
+     <span class="tabular" style="font-size:12px;color:#9FA3B5">184 ms</span>
+     <span class="tabular" style="font-size:12px;color:#7A7F93">2.4 KB</span>
+     <button style="margin-left:8px;padding:3px 8px;font-size:11px;background:#0E0E10;border:1px solid #232329;color:#E6E8F0">Lock schema</button>
+     <button style="padding:3px 8px;font-size:11px;background:#0E0E10;border:1px solid #232329;color:#7A7F93">Save baseline</button>
+     <div style="margin-left:auto;display:flex;gap:4px">
+      <button class="vbtn active" data-v="body" style="padding:4px 10px;font-size:11px;background:rgba(139,92,246,.10);color:#8B5CF6;border-left:2px solid #8B5CF6;font-weight:600">Body</button>
+      <button class="vbtn" data-v="headers" style="padding:4px 10px;font-size:11px;background:transparent;color:#7A7F93">Headers</button>
+      <button class="vbtn" data-v="timeline" style="padding:4px 10px;font-size:11px;background:transparent;color:#7A7F93">Timeline</button>
+      <button class="vbtn" data-v="raw" style="padding:4px 10px;font-size:11px;background:transparent;color:#7A7F93">Raw</button>
+     </div>
+    </div>
+    <div style="flex:1;overflow:auto;padding:16px;background:var(--bg-base);min-height:160px">
+     <div data-vpanel="body">
+      <div style="font-size:11px;letter-spacing:.06em;color:#7A7F93;margin-bottom:8px">BODY · JSON tree (4 users)</div>
+      <div style="background:#0E0E10;border:1px solid #232329;padding:12px;font-family:var(--font-mono);font-size:12px;line-height:18px">
+       <div style="color:#7A7F93">{ <span style="color:#A5D6A7">"data"</span>: [</div>
+       <div style="padding-left:16px;color:#E6E8F0">{ <span style="color:#A5D6A7">"id"</span>: <span style="color:#FFCC80">1</span>, <span style="color:#A5D6A7">"name"</span>: <span style="color:#A5D6A7">"Ada Lovelace"</span>, <span style="color:#A5D6A7">"email"</span>: <span style="color:#A5D6A7">"ada@apiforge.dev"</span>, <span style="color:#A5D6A7">"role"</span>: <span style="color:#A5D6A7">"admin"</span> }</div>
+       <div style="padding-left:16px;color:#E6E8F0">{ <span style="color:#A5D6A7">"id"</span>: <span style="color:#FFCC80">2</span>, <span style="color:#A5D6A7">"name"</span>: <span style="color:#A5D6A7">"Alan Turing"</span>, <span style="color:#A5D6A7">"email"</span>: <span style="color:#A5D6A7">"alan@apiforge.dev"</span>, <span style="color:#A5D6A7">"role"</span>: <span style="color:#A5D6A7">"viewer"</span> }</div>
+       <div style="padding-left:16px;color:#7A7F93">… 2 more</div>
+       <div style="color:#7A7F93">], <span style="color:#A5D6A7">"meta"</span>: { <span style="color:#A5D6A7">"page"</span>: <span style="color:#FFCC80">1</span>, <span style="color:#A5D6A7">"total"</span>: <span style="color:#FFCC80">42</span> } }</div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;font-size:11px">
+       <span style="background:#121215;border:1px solid #232329;color:#9FA3B5;padding:4px 8px">Size 2.4 KB · JSON · 4 items</span>
+       <span style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.18);color:#10B981;padding:4px 8px">✓ Tests 2/2 passed</span>
+      </div>
+     </div>
+     <div data-vpanel="headers" style="display:none">
+      <div style="font-size:11px;letter-spacing:.06em;color:#7A7F93;margin-bottom:8px">HEADERS · 6</div>
+      <div style="background:#0E0E10;border:1px solid #232329;padding:0;font-family:var(--font-mono);font-size:12px">
+       <div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #1A1A20"><span style="color:#7A7F93">content-type</span><span style="color:#E6E8F0">application/json; charset=utf-8</span></div>
+       <div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #1A1A20"><span style="color:#7A7F93">x-request-id</span><span style="color:#E6E8F0">req_9f3a…</span></div>
+       <div style="display:flex;justify-content:space-between;padding:8px 12px"><span style="color:#7A7F93">cache-control</span><span style="color:#E6E8F0">no-cache</span></div>
+      </div>
+     </div>
+     <div data-vpanel="timeline" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--font-mono);font-size:12px">
+       <div style="color:#7A7F93">TTFB: <b style="color:#E6E8F0">96 ms</b></div><div style="color:#7A7F93">Download: <b style="color:#E6E8F0">42 ms</b></div>
+       <div style="color:#7A7F93">Total: <b style="color:#E6E8F0">184 ms</b></div><div style="color:#7A7F93">Size: <b style="color:#E6E8F0">2.4 KB</b></div>
+      </div>
+      <div style="margin-top:12px;height:10px;background:#121215;border:1px solid #232329;border-radius:9999px;overflow:hidden;display:flex"><div style="width:52%;background:#8B5CF6"></div><div style="width:23%;background:#8B5CF6;opacity:.6"></div></div>
+      <pre style="margin-top:12px;background:#121215;border:1px solid #232329;padding:12px;font-size:11px;color:#7A7F93">{"dns":4,"tcp":8,"tls":12,"ttfb":96,"download":42,"total":184}</pre>
+     </div>
+     <div data-vpanel="raw" style="display:none"><pre style="background:#0E0E10;border:1px solid #232329;padding:12px;font-size:12px;color:#E6E8F0;white-space:pre-wrap">{"data":[{"id":1,"name":"Ada Lovelace","email":"ada@apiforge.dev","role":"admin"},…],"meta":{"page":1,"total":42}}</pre></div>
+    </div>
+   </div>
+
+   <div style="margin:0 28px 14px 28px;display:flex;align-items:center;gap:8px;font-size:11px;color:#7A7F93">
+    <span style="width:6px;height:6px;border-radius:9999px;background:#8B5CF6;box-shadow:0 0 6px rgba(139,92,246,.35)"></span> Pro tip: Use <span style="background:#121215;border:1px solid #232329;color:#E6E8F0;padding:1px 6px;font-family:var(--font-mono)">&#123;&#123;var&#125;&#125;</span> with environment staging for Local→Prod switch. <span style="margin-left:auto;color:#5A5E6E">↵ Enter to send · Ctrl+N new tab · ⌘K palette</span>
+   </div>
+  </div>
+ </div>
+</div>
+
+<!-- Data Seed (JSON) — copy for real app import -->
+<script type="application/json" id="seed">
+{
+  "workspace": "APIro Demo",
+  "environments": [
+    {"name":"local","vars":{"baseUrl":"http://localhost:3000","pageSize":"5","accessToken":"local_dev_token_•••"}},
+    {"name":"staging","vars":{"baseUrl":"https://api.staging.apiforge.dev","pageSize":"10","accessToken":"eyJhbGciOiJIUzI1NiIs..."},"active":true},
+    {"name":"prod","vars":{"baseUrl":"https://api.apiforge.dev","pageSize":"25","accessToken":"prod_•••"}}
+  ],
+  "collections": [
+    {"name":"Users API","count":3,"requests":[
+      {"method":"GET","name":"GET Users","url":"{{baseUrl}}/api/users?page=1&limit={{pageSize}}","headers":[{"key":"Accept","value":"application/json"}],"tests":2},
+      {"method":"POST","name":"POST Create user","url":"{{baseUrl}}/api/users","bodyType":"json","body":"{ \"name\": \"{{$randomFullName}}\", \"email\": \"{{$randomEmail}}\" }"},
+      {"method":"GET","name":"GET Me","url":"{{baseUrl}}/api/me","auth":"bearer"}
+    ]}
+  ],
+  "history": [
+    {"method":"GET","url":"{{baseUrl}}/api/users","status":200,"time":184},
+    {"method":"POST","url":"{{baseUrl}}/api/users","status":201,"time":210}
+  ]
+}
+</script>
+
+<script>
+lucide.createIcons();
+
+const methodColors={GET:'#10B981',POST:'#8B5CF6',PUT:'#EAB308',PATCH:'#A78BFA',DELETE:'#EF4444'};
+
+// tab switching inner
+document.querySelectorAll('.tabbtn').forEach(b=>{
+ b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  const t=b.dataset.tab;
+  document.querySelectorAll('[data-panel]').forEach(p=>p.style.display=p.dataset.panel===t?'block':'none');
+ });
+});
+// response view switching
+document.querySelectorAll('.vbtn').forEach(b=>{
+ b.addEventListener('click',()=>{
+  document.querySelectorAll('.vbtn').forEach(x=>{x.style.background='transparent';x.style.color='#7A7F93';x.style.borderLeft='2px solid transparent';x.style.fontWeight='450'});
+  b.style.background='rgba(139,92,246,.10)';b.style.color='#8B5CF6';b.style.borderLeft='2px solid #8B5CF6';b.style.fontWeight='600';
+  const v=b.dataset.v;
+  document.querySelectorAll('[data-vpanel]').forEach(p=>p.style.display=p.dataset.vpanel===v?'block':'none');
+ });
+});
+// request tabs switching (seed)
+const rqData=[
+ {method:'GET',url:'{{baseUrl}}/api/users?page=1&limit=10',color:methodColors.GET},
+ {method:'POST',url:'{{baseUrl}}/api/users',color:methodColors.POST},
+ {method:'GET',url:'{{baseUrl}}/api/me',color:methodColors.GET},
+];
+document.querySelectorAll('[data-rqtab]').forEach(btn=>{
+ btn.addEventListener('click',()=>{
+  document.querySelectorAll('[data-rqtab]').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  const i=parseInt(btn.dataset.rqtab);
+  const d=rqData[i];
+  document.getElementById('methodSel').value=d.method;
+  document.getElementById('methodSel').style.color=d.color;
+  document.getElementById('urlInp').value=d.url;
+ });
+});
+document.getElementById('methodSel').addEventListener('change',e=>{
+ e.target.style.color=methodColors[e.target.value]||'#E6E8F0';
+});
+// Send demo
+document.getElementById('sendBtn').addEventListener('click',()=>{
+ const btn=document.getElementById('sendBtn');
+ const resp=document.getElementById('resp');
+ const orig=btn.innerHTML;
+ btn.innerHTML='<span style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:9999px;display:inline-block;animation:spin .6s linear infinite"></span> Sending…';
+ btn.disabled=true;
+ resp.style.opacity='.6';
+ setTimeout(()=>{
+  btn.innerHTML=orig; btn.disabled=false; resp.style.opacity='1'; lucide.createIcons();
+  // toast demo
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:16px;right:16px;background:#121212;border:1px solid #262626;border-left:2px solid #10B981;color:#E6E8F0;padding:12px 16px;font-size:13px;z-index:9999;display:flex;gap:10px;align-items:start;max-width:360px';
+  t.innerHTML='<span style="color:#10B981">✓</span><div><b>200 OK</b> — 184 ms · staging<br><span style="color:#8F909E;font-size:12px">GET {{baseUrl}}/api/users · 2 tests passed</span></div>';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+ },900);
+});
+const style=document.createElement('style');
+style.textContent='@keyframes spin{to{transform:rotate(360deg)}}';
+document.head.appendChild(style);
+
+// copy seed JSON helper (console)
+console.log('APIro demo seed:', JSON.parse(document.getElementById('seed').textContent));
+</script>
+</body>
+</html>

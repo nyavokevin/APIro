@@ -6,7 +6,7 @@ export type SecuritySeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type SecurityCategory = 'headers' | 'auth' | 'transport' | 'exposure' | 'injection';
 
 export type FindingStatus = 'open' | 'ignored' | 'resolved';
-export type ScanType = 'passive' | 'bola' | 'rate-limit' | 'zap';
+export type ScanType = 'passive' | 'bola' | 'rate-limit' | 'auth' | 'injection' | 'jwt' | 'mass-assignment' | 'zap';
 
 export interface SecurityFinding {
   id: string;
@@ -61,6 +61,7 @@ interface SecurityState {
   setSelectedRequestId: (id: string | null) => void;
   setSelectedScanId: (id: string | null) => void;
   runPassiveScanForRequest: (request: RequestData, response: ResponseData | null) => SecurityFinding[];
+  ingestActiveFindings: (type: ScanType, request: RequestData, findings: SecurityFinding[]) => SecurityFinding[];
   recordScan: (type: ScanType, requestIds: string[], findings: SecurityFinding[], environment: string | null) => ScanRecord;
   deleteScan: (id: string) => void;
   clearScans: () => void;
@@ -147,6 +148,25 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
     return withMeta;
   },
 
+  ingestActiveFindings: (type, request, incoming) => {
+    const withMeta = incoming.map((f) => ({
+      ...f,
+      status: (f.status ?? 'open') as FindingStatus,
+      owasp: f.owasp ?? mapCategoryToOwasp(f.category, f.ruleId),
+      endpoint: f.endpoint ?? `${request.method} ${request.url}`,
+      method: f.method ?? request.method,
+    }));
+    // Merge by requestId+ruleId so active findings don't wipe passive ones.
+    set((s) => {
+      const remaining = s.findings.filter(
+        (f) => !withMeta.some((n) => n.requestId === f.requestId && n.ruleId === f.ruleId)
+      );
+      return { findings: [...remaining, ...withMeta] };
+    });
+    get().recordScan(type, [request.id], withMeta, resolveActiveEnvName());
+    return withMeta;
+  },
+
   recordScan: (type, requestIds, findings, environment) => {
     const now = Date.now();
     const severityCounts: Record<SecuritySeverity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
@@ -187,6 +207,17 @@ export const useSecurityStore = create<SecurityState>((set, get) => ({
     return active;
   },
 }));
+
+function resolveActiveEnvName(): string | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { useEnvironmentStore } = require('./environmentStore');
+    const st = useEnvironmentStore.getState();
+    return st.environments.find((e: any) => e.id === st.activeId)?.name ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function mapCategoryToOwasp(category: SecurityCategory, ruleId: string): string {
   if (ruleId.includes('BOLA') || ruleId.includes('IDOR')) return 'API1:2023';
