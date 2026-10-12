@@ -12,6 +12,7 @@ const PAGE_TITLES: Record<AppPage, string> = {
   history: 'History',
   environments: 'Environments',
   scanner: 'Route Scanner',
+  discover: 'API Discovery',
   mocks: 'Mock Servers',
   testing: 'Testing',
   security: 'Security',

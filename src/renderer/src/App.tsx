@@ -6,6 +6,7 @@ import { Workspace } from './pages/Workspace';
 import { Collections } from './pages/Collections';
 import { Environments } from './pages/Environments';
 import { RouteScanner } from './pages/RouteScanner';
+import { SiteAudit } from './pages/SiteAudit';
 import { MockServers } from './pages/MockServers';
 import { Testing } from './pages/Testing';
 import { SecurityPage } from './pages/SecurityPage';
@@ -88,6 +89,7 @@ export default function App() {
         {page === 'history' && <History />}
         {page === 'environments' && <Environments />}
         {page === 'scanner' && <RouteScanner />}
+        {page === 'discover' && <SiteAudit />}
         {page === 'mocks' && <MockServers />}
         {page === 'testing' && <Testing />}
         {page === 'security' && <SecurityPage />}

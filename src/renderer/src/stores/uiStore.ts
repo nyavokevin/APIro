@@ -10,6 +10,7 @@ export type AppPage =
   | 'history'
   | 'environments'
   | 'scanner'
+  | 'discover'
   | 'mocks'
   | 'testing'
   | 'security'

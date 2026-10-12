@@ -5,6 +5,7 @@ import {
   Plus,
   Globe,
   ScanLine,
+  Radar,
   Server,
   Settings as SettingsIcon,
   FileDown,
@@ -164,6 +165,11 @@ export function CommandPalette() {
               icon={<ScanLine size={14} />}
               label="Open Route Scanner"
               onSelect={() => run(() => setActivePage('scanner'))}
+            />
+            <PaletteItem
+              icon={<Radar size={14} />}
+              label="Open API Discovery"
+              onSelect={() => run(() => setActivePage('discover'))}
             />
             <PaletteItem
               icon={<Server size={14} />}
