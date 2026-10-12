@@ -151,18 +151,111 @@ pub fn yaml_read_tree(dir: Option<String>) -> Result<Vec<Node>, String> {
     collections::read_tree(&dir)
 }
 
-#[tauri::command]
-pub fn yaml_save_tree(dir: Option<String>, tree: Node) -> Result<Vec<String>, String> {
-    let dir = dir.map(PathBuf::from).unwrap_or_else(default_workspace);
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    collections::write_tree(&tree, &dir)
-        .map(|files| files.iter().map(|p| p.to_string_lossy().to_string()).collect())
+fn workspace_dir_for_guard(store: &Store, override_dir: Option<&String>) -> PathBuf {
+    if let Some(d) = override_dir {
+        return PathBuf::from(d);
+    }
+    store
+        .get_setting("workspace_path")
+        .ok()
+        .flatten()
+        .map(PathBuf::from)
+        .unwrap_or_else(default_workspace)
+}
+
+fn effective_tier_for_store(store: &Store) -> crate::license::tiers::Tier {
+    use crate::license::store::{get_stored_license_checked, LicenseState};
+    use crate::license::tiers::{effective_tier, Tier};
+    use chrono::Utc;
+    let opt = get_stored_license_checked(store).ok().flatten();
+    let mut status: crate::license::store::LicenseStatus = opt.clone().into();
+    if let Some(stored) = opt {
+        const GRACE_DAYS: i64 = 7;
+        let elapsed = Utc::now().signed_duration_since(stored.last_verified_at);
+        let grace_over = stored.state == LicenseState::PendingSync && elapsed.num_days() > GRACE_DAYS;
+        let expired = stored.payload.expires_at.map(|exp| Utc::now() > exp).unwrap_or(false);
+        if grace_over {
+            status.state = LicenseState::GracePeriodOver;
+        } else if expired {
+            status.state = LicenseState::Expired;
+        }
+    }
+    effective_tier(&status)
+}
+
+fn check_collection_guard(
+    store: &Store,
+    dir: &std::path::Path,
+    incoming_top_level_count: u32,
+    existing_count: u32,
+) -> Result<(), String> {
+    let tier = effective_tier_for_store(store);
+    let limits = crate::license::tiers::TierLimits::for_tier(tier);
+    if let Some(max) = limits.max_collections {
+        // Allow if not increasing beyond limit, or if already over-limit and not growing
+        if incoming_top_level_count > max && incoming_top_level_count > existing_count {
+            return Err(format!(
+                "Free plan allows {} collections (you have {}). Delete some or upgrade to Pro for unlimited collections.",
+                max, existing_count
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn top_level_exists(dir: &std::path::Path, name: &str) -> bool {
+    // Check if a top-level entry with this name already exists (folder or .request.yaml)
+    let sanitized = name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' { c } else { '_' })
+        .collect::<String>();
+    let folder = dir.join(&sanitized);
+    if folder.exists() {
+        return true;
+    }
+    let file = dir.join(format!("{}.request.yaml", sanitized));
+    file.exists()
 }
 
 #[tauri::command]
-pub fn yaml_replace_all(dir: Option<String>, nodes: Vec<Node>) -> Result<Vec<String>, String> {
-    let dir = dir.map(PathBuf::from).unwrap_or_else(default_workspace);
-    collections::replace_all(&nodes, &dir)
+pub fn yaml_save_tree(
+    dir: Option<String>,
+    tree: Node,
+    store: tauri::State<Store>,
+) -> Result<Vec<String>, String> {
+    let dir_path = dir.as_ref().map(PathBuf::from).unwrap_or_else(default_workspace);
+    // Smart guard: only block if this would create a NEW top-level collection beyond the limit
+    let existing_count = collections::read_tree(&dir_path).map(|v| v.len() as u32).unwrap_or(0);
+    let is_new_top_level = !top_level_exists(&dir_path, &tree_name(&tree));
+    let incoming = if is_new_top_level {
+        existing_count.saturating_add(1)
+    } else {
+        existing_count
+    };
+    check_collection_guard(&store, &dir_path, incoming, existing_count)?;
+    std::fs::create_dir_all(&dir_path).map_err(|e| e.to_string())?;
+    collections::write_tree(&tree, &dir_path)
+        .map(|files| files.iter().map(|p| p.to_string_lossy().to_string()).collect())
+}
+
+fn tree_name(node: &Node) -> String {
+    match node {
+        Node::Folder { name, .. } => name.clone(),
+        Node::Request { name, .. } => name.clone(),
+    }
+}
+
+#[tauri::command]
+pub fn yaml_replace_all(
+    dir: Option<String>,
+    nodes: Vec<Node>,
+    store: tauri::State<Store>,
+) -> Result<Vec<String>, String> {
+    let dir_path = dir.as_ref().map(PathBuf::from).unwrap_or_else(default_workspace);
+    let existing_count = collections::read_tree(&dir_path).map(|v| v.len() as u32).unwrap_or(0);
+    let incoming = nodes.len() as u32;
+    check_collection_guard(&store, &dir_path, incoming, existing_count)?;
+    collections::replace_all(&nodes, &dir_path)
         .map(|files| files.iter().map(|p| p.to_string_lossy().to_string()).collect())
 }
 

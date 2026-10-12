@@ -228,6 +228,13 @@ impl Store {
         .map_err(|e| e.to_string())?;
         Ok(())
     }
+
+    pub fn delete_setting(&self, key: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|_| "poisoned")?;
+        conn.execute("DELETE FROM settings WHERE key = ?1", rusqlite::params![key])
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

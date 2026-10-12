@@ -5,6 +5,10 @@ import { api } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { getOpenRouterConfig, tryOpenRouterOrFallback } from '../../lib/openRouter';
+import { useTierGate } from '../../hooks/useTierGate';
+import { ProLockedPanel } from '../license/ProLockedPanel';
+import { TierLimitBanner } from '../license/TierLimitBanner';
+import { useGateToast } from '../../hooks/useGateToast';
 
 interface AIAssistantProps {
   request: RequestData | null;
@@ -28,13 +32,40 @@ export function AIAssistant({
   const [error, setError] = useState<string | null>(null);
   const cfg = getOpenRouterConfig();
   const usingOpenRouter = !!cfg?.enabled;
+  const { usage, checkGate, consumeAiQuota } = useTierGate();
+  const showGateToast = useGateToast();
+  const [gateDenied, setGateDenied] = useState<import('../../hooks/useTierGate').GateResult | null>(null);
+
+  // Free tier has ai quota Some(0) => locked entirely
+  const aiEnabled = usage ? usage.aiAssistant.max !== 0 : false;
+  const isFreeLocked = usage?.tier === 'free';
 
   const run = async (ch: AIChannel) => {
     if (!request || !response) return;
+    const gate = await checkGate('UseAiAssistant');
+    if (gate.type === 'Denied') {
+      setGateDenied(gate);
+      showGateToast(gate);
+      return;
+    }
+    // Consume quota before LLM call (Pro/Team)
+    const consumed = await consumeAiQuota();
+    if (!consumed.ok) {
+      const fallbackDenied: import('../../hooks/useTierGate').GateResult = {
+        type: 'Denied',
+        reason: { type: 'aiQuotaExhausted', used: usage?.aiAssistant.current ?? 0, quota: usage?.aiAssistant.max ?? 100, resetsAt: new Date(Date.now() + 30*24*3600*1000).toISOString() },
+        currentTier: (usage?.tier ?? 'pro') as any,
+        upgradeHint: consumed.error ?? 'AI quota exhausted',
+      };
+      setGateDenied(fallbackDenied);
+      showGateToast(fallbackDenied as any);
+      return;
+    }
     setChannel(ch);
     setLoading(true);
     setError(null);
     setVia(null);
+    setGateDenied(null);
     try {
       const fallback = async () => {
         const res = await api.ai.analyze({
@@ -72,8 +103,21 @@ export function AIAssistant({
     }
   };
 
+  if (isFreeLocked && !aiEnabled) {
+    return (
+      <Modal open={open} onClose={() => onClose?.()} title="AI Assistant">
+        <ProLockedPanel feature="AI Assistant" description="AI Assistant is a Pro feature — 100 requests/month, 500 on Team. Enter your license key to unlock." />
+      </Modal>
+    );
+  }
+
   return (
     <Modal open={open} onClose={() => onClose?.()} title="AI Assistant">
+      {gateDenied && gateDenied.type === 'Denied' && (
+        <div className="mb-3">
+          <TierLimitBanner result={gateDenied} onDismiss={() => setGateDenied(null)} />
+        </div>
+      )}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
